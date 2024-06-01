@@ -134,7 +134,8 @@ public:
     void schedule_event(Event* event) {
         this->event_queue.push(event);
     }
-    void add_order(double time, PackageCategory ctg, string src, string dst); // add station
+    void
+    add_order(string id, double time, PackageCategory ctg, string src, string dst); // add station
     void add_station(string id, double time_on_belt, double time_process) {
         Station station;
         station.id = id;
@@ -433,9 +434,9 @@ void V1StartSend::process_event() {
     this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
 }
 
-void Simulation::add_order(double time, PackageCategory ctg, string src, string dst) {
+void Simulation::add_order(string id, double time, PackageCategory ctg, string src, string dst) {
     this->id_cnt += 1;
-    string id = std::to_string(this->id_cnt);
+    // string id = std::to_string(this->id_cnt);
     this->packages[id] = Package { id, ctg, time, src, dst };
     this->schedule_event(new Arrival(time, *this, id, src));
 }
@@ -501,16 +502,17 @@ TEST_CASE("main") {
                 int ctg;
                 string src;
                 string dst;
+                string id;
                 char c;
 
-                ss >> time >> c >> ctg >> c >> src >> c >> dst;
+                ss >> id >> c >> time >> c >> ctg >> c >> src >> c >> dst;
 
                 cout << "time: " << time << " ctg: " << ctg << " src: " << src << " dst: " << dst
                      << std::endl;
                 if (ctg == 0)
-                    sim.add_order(time, PackageCategory::STANDARD, src, dst);
+                    sim.add_order(id, time, PackageCategory::STANDARD, src, dst);
                 else
-                    sim.add_order(time, PackageCategory::EXPRESS, src, dst);
+                    sim.add_order(id, time, PackageCategory::EXPRESS, src, dst);
             }
         }
     } else {

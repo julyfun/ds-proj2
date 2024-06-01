@@ -173,7 +173,7 @@ if __name__ == '__main__':
         
         f.write("packets:"+"\n")
         for i, packet in enumerate(data["packets"]):
-            f.write(#str(uuid.uuid4())+
+            f.write(str(uuid.uuid4())+" , "+
                     str(packet[0])+" , "+
                     str(packet[1])+" , "+
                     str(packet[2])+" , "+
