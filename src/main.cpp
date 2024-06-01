@@ -289,10 +289,10 @@ TEST_CASE("dijkstra") {
         Route { "d", "e", 6, 6 },
     };
     auto path = dijkstra(stations, routes, "a", "e");
-    for (const auto& station: path) {
-        cout << station << " ";
-    }
-    cout << '\n';
+    // for (const auto& station: path) {
+    //     cout << station << " ";
+    // }
+    // cout << '\n';
     auto ans = vector<string> { "a", "b", "d", "e" };
     for (int i = 0; i < path.size(); i++) {
         CHECK(path[i] == ans[i]);
