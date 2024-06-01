@@ -443,11 +443,80 @@ void Simulation::add_order(double time, PackageCategory ctg, string src, string 
 TEST_CASE("main") {
     cout << "Begin\n";
     Simulation sim;
-    sim.add_station("a", 2.2, 4.5);
-    sim.add_station("b", 1.0 / 5, 2);
-    sim.add_route("a", "b", 100, 1200);
-    sim.add_order(100, PackageCategory::STANDARD, "a", "b");
-    sim.add_order(100, PackageCategory::EXPRESS, "a", "b");
+    // sim.add_station("a", 2.2, 4.5);
+    // sim.add_station("b", 1.0 / 5, 2);
+    // sim.add_route("a", "b", 100, 1200);
+    // sim.add_order(100, PackageCategory::STANDARD, "a", "b");
+    // sim.add_order(100, PackageCategory::EXPRESS, "a", "b")
+    std::ifstream file("data.txt", std::ios::in);
+    if (file.is_open()) {
+        string line;
+        bool is_stations_section = false;
+        bool is_routes_section = false;
+        bool is_orders_section = false;
+        std::cout << "Reading file..." << std::endl;
+        while (std::getline(file, line)) {
+            std::cout << line << std::endl;
+            if (line == "stations:") {
+                is_stations_section = true;
+                is_routes_section = false;
+                is_orders_section = false;
+            } else if (line == "edges:") {
+                is_stations_section = false;
+                is_routes_section = true;
+                is_orders_section = false;
+            } else if (line == "packets:") {
+                is_stations_section = false;
+                is_routes_section = false;
+                is_orders_section = true;
+            } else if (is_stations_section) {
+                std::stringstream ss(line);
+                string id;
+                double throughput, time_process, cost;
+                char p_l; // parenthesis left
+                char c; // comma
+                char p_r; // parenthesis right
+
+                ss >> id >> c >> p_l >> throughput >> c >> time_process >> c >> cost >> p_r;
+                // id = "'" + id + "'";
+                cout << "id: " << id << " throughput: " << throughput
+                     << " time process:" << time_process << std::endl;
+                sim.add_station(id, 1 / throughput, time_process);
+
+            } else if (is_routes_section) {
+                std::stringstream ss(line);
+                string src;
+                string dst;
+                double time_cost, money_cost;
+                char c;
+
+                ss >> src >> c >> dst >> c >> time_cost >> c >> money_cost;
+
+                cout << "src: " << src << " dst: " << dst << " time cost: " << time_cost
+                     << " money_cost: " << money_cost << std::endl;
+                sim.add_route(src, dst, time_cost, money_cost);
+            } else if (is_orders_section) {
+                std::stringstream ss(line);
+                double time;
+                int ctg;
+                string src;
+                string dst;
+                char c;
+
+                ss >> time >> c >> ctg >> c >> src >> c >> dst;
+
+                cout << "time: " << time << " ctg: " << ctg << " src: " << src << " dst: " << dst
+                     << std::endl;
+                if (ctg == 0)
+                    sim.add_order(time, PackageCategory::STANDARD, src, dst);
+                else
+                    sim.add_order(time, PackageCategory::EXPRESS, src, dst);
+            }
+        }
+    } else {
+        std::cout << "File not found" << std::endl;
+    }
+
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
     cout << "End\n";
