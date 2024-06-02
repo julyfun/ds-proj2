@@ -24,6 +24,10 @@ easy
       - 对于任意 DELAY 触发时，push [ trip_time(5s) 之后, ARRIVE { id, to } ]
     - 站点发现 ARRIVE s.t. to 为自己时，更新自己的状态 (unprocessed)
     - struct Site { property ,unprocessed: list<Pack> }
+    
+---
+
+## 一些初步的想法
 
 ```cpp
 // in main
