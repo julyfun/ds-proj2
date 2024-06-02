@@ -153,7 +153,7 @@ def data_gen():
 
 if __name__ == '__main__':
     data = data_gen()
-    with open("./build/data.txt", "w") as f:
+    with open("data.txt", "w") as f:
         f.write("stations:"+"\n")
         for i, station in enumerate(data["station_id"]):
             f.write(station+' , '+

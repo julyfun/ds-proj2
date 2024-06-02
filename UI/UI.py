@@ -17,7 +17,6 @@ app = Dash(__name__, external_stylesheets=external_stylesheets)
 event_list = pd.read_csv("./build/output.txt", skiprows=3, sep=']', header=None, names=["time", "station", "event"])
 event_list = event_list[event_list['time'].str.startswith('[')].iloc[:-3]
 event_list['time'] = event_list['time'].apply(lambda x: x.lstrip('['))
-time_of_selected_station = pd.DataFrame(columns=['time'])
 
 station = event_list['station']
 times = event_list['time']
@@ -70,7 +69,14 @@ app.layout = html.Div([
     ]),
 
     html.Div(id='check_output',
-             style={'margin-top': 20, 'background-color': 'lightgray', 'padding': '10px'})
+             style={'margin-top': 20, 'background-color': 'lightgray', 'padding': '10px'}),
+
+    dcc.Graph(id='animation-with-events'),
+    dcc.Interval(
+        id='interval-component',
+        interval=1*1000,
+        n_intervals=0
+    ),
 ])
 
 @app.callback(
@@ -97,7 +103,7 @@ def update_figure(selected_time):
             opacity=0.5,
         ),
         hoverinfo='text',
-        hovertext=filtered_df['station'],
+        hovertext=filtered_df['station']+" "+"number of packages in buffer: "+filtered_df['num_pack_in_buffer'].astype(str),
     ))
     fig.update_traces(marker=dict(size=filtered_df['num_pack_in_buffer'],
                                   color=filtered_df['num_pack_in_buffer'],))
@@ -163,6 +169,25 @@ def update_check_output(selected_station, selected_time):
     
     return f"You selected Station {selected_station} at Time {selected_time}, the event is: \n{''.join(events)}"
 
+@app.callback(
+    Output('animation-with-events', 'figure'),
+    Input('interval-component', 'n_intervals'),
+)
+
+def update_animation(n):
+    lastest_data = event_list[event_list['time'].astype(float) <= n]
+    lastest_data = lastest_data.tail(100)
+
+    fig = px.scatter(x=lastest_data['time'],
+                     y=lastest_data['station'],
+                     color=lastest_data['event'],
+                     labels={'x': 'Time', 'y': 'Station', 'color': 'Event'},
+                     title='Event Animation',
+                     width=1000,
+                     height=800)
+    fig.update_traces(marker=dict(size=10))
+    return fig
+
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True, port=8050)
 

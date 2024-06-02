@@ -160,6 +160,9 @@ void Simulation::run() {
     std::ofstream number_package_in_station("number_package_in_station.csv");
     // file.clear();
     number_package_in_station.clear();
+    std::ofstream package_trip("package_trip.csv");
+    package_trip.clear();
+
     while (!this->event_queue.empty()) {
         Event* event = this->event_queue.top();
         this->event_queue.pop();
@@ -317,6 +320,7 @@ public:
     void process_event() override {
         // std::ofstream file("output.txt", std::ios::app);
         std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
+        std::ofstream package_trip("package_trip.csv", std::ios::app);
 
         fmt::println(
             "[{:.3f}] {}] station {} try to process one.",
@@ -390,6 +394,8 @@ public:
                 this->station,
                 this->station
             ));
+            package_trip << this->time << "," << earliest << "," << this->station << ","
+                         << this->station << "\n";
             return;
         }
         fmt::println(
@@ -415,12 +421,15 @@ public:
             this->station,
             path[1]
         ));
+        package_trip << this->time << "," << earliest << "," << this->station << "," << path[1]
+                     << "\n";
     }
 };
 
 void Arrival::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
+    std::ofstream package_trip("package_trip.csv", std::ios::app);
 
     println(
         "[{:.3f}] {}] Arrival pack {}: {}",
@@ -441,6 +450,8 @@ void Arrival::process_event() {
         number_package_in_station << this->time << "," << id << "," << station.buffer.size()
                                   << "\n";
     }
+    package_trip << this->time << "," << this->package << "," << this->station << ","
+                 << this->station << "\n";
     this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->station));
     // this->sim.schedule_event();
 }
@@ -511,7 +522,7 @@ TEST_CASE("main") {
     // sim.add_route("a", "b", 100, 1200);
     // sim.add_order(100, PackageCategory::STANDARD, "a", "b");
     // sim.add_order(100, PackageCategory::EXPRESS, "a", "b")
-    std::ifstream file("data.txt", std::ios::in);
+    std::ifstream file("../data.txt", std::ios::in);
     if (file.is_open()) {
         string line;
         bool is_stations_section = false;
