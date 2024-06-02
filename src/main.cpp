@@ -11,8 +11,10 @@
 #include <vector>
 
 #include "fmt/core.h"
+#include "log.hpp"
+#include "rust.hpp"
 
-using fmt::println;
+// using fmt::logs;
 using std::cout;
 using std::greater;
 using std::make_pair;
@@ -23,6 +25,12 @@ using std::priority_queue;
 using std::set;
 using std::string;
 using std::vector;
+
+using log::logs;
+
+// [comptime]
+
+// [const]
 
 int rand(int n) {
     return rand() % n;
@@ -86,15 +94,21 @@ struct DataBase {
 
 // minimal
 struct Station {
+public:
     string id;
-    double process_interval;
+    double throughput;
     double process_time;
-    set<string> buffer;
-    optional<string> processing_package;
 
-    void take_package_from_buffer_to_processing(string package) {
+    set<string> buffer;
+    // 下一个可以开始处理的时间
+    double start_process_ok_time = std::numeric_limits<double>::min();
+    // optional<string> processing_package;
+
+public:
+    void take_package_from_buffer_to_processing(string package, double time) {
         this->buffer.erase(package);
-        this->processing_package = package;
+        this->start_process_ok_time = time + 1.0 / this->throughput;
+        // this->processing_package = package;
     }
 };
 
@@ -117,7 +131,7 @@ private:
         event_queue;
     int arrived = 0;
     double total_time = 0;
-    int id_cnt = 0;
+    // int id_cnt = 0;
 
 public:
     DataBase db;
@@ -136,21 +150,27 @@ public:
     }
     void
     add_order(string id, double time, PackageCategory ctg, string src, string dst); // add station
-    void add_station(string id, double time_on_belt, double time_process) {
-        Station station;
-        station.id = id;
-        station.process_interval = time_on_belt;
-        station.process_time = time_process;
-        this->stations[id] = station;
+    void add_station(string id, double throughput, double process_time) {
+        this->stations[id] = Station { id, throughput, process_time };
     }
     // add route
     void add_route(string src, string dst, double time, double cost) {
+        // check src and dst exist
+        assert(this->stations.find(src) != this->stations.end());
+        assert(this->stations.find(dst) != this->stations.end());
         auto route = Route { src, dst, time, cost };
         this->routes[src].push_back(route);
     }
     // arrive package
     void finish_order(string package, double time) {
         this->total_time += time - this->packages[package].time_created;
+        // finish log
+        logs(
+            "package {} arrived at {}, spent {}",
+            package,
+            time,
+            time - this->packages[package].time_created
+        );
         this->arrived += 1;
     }
 };
@@ -169,8 +189,10 @@ void Simulation::run() {
         this->time = event->time;
         event->process_event();
 
-        cout << "arrived: " << this->arrived << ", "; // "arrived: 1\n"
-        cout << "time cost: " << this->total_time << "\n";
+        // cout << "arrived: " << this->arrived << ", "; // "arrived: 1\n"
+        // cout << "time cost: " << this->total_time << "\n";
+        // in fmt
+        logs("arrived: {}, time cost: {}", this->arrived, this->total_time);
         // file << "arrived: " << this->arrived << ", " << "time cost: " << this->total_time << "\n"; // TODO
         delete event;
     }
@@ -319,40 +341,41 @@ public:
 
     void process_event() override {
         // std::ofstream file("output.txt", std::ios::app);
+        // std::ofstream file("output.txt", std::ios::app);
         std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
         std::ofstream package_trip("package_trip.csv", std::ios::app);
 
-        fmt::println(
-            "[{:.3f}] {}] station {} try to process one.",
-            this->time,
-            this->station,
-            this->station
-        );
-        // file << "[" << this->time << "]" << " station " << this->station
-        //  << " try to process one.\n";
-        if (this->sim.stations[this->station].processing_package.has_value()) {
+        logs("[{:.3f}] station {} try to process one.", this->time, this->station);
+        // 根据吞吐量判断 StartProcess 间隔
+        if (!rust::time_ok(this->time, this->sim.stations[this->station].start_process_ok_time)) {
             // gg
-            fmt::println(
-                "[{:.3f}] {}] station {} failed to process one package, because it's busy.",
+            logs(
+                "[{:.3f}] station {} failed to process one package, because start-process is in cd",
                 this->time,
                 this->station,
                 this->station
             );
-            // file << "[" << this->time << "]" << " station " << this->station
-            //      << " failed to process one package, because it's busy.\n";
+            // when cd is ok, try again
+            this->sim.schedule_event(new V1TryProcessOne(
+                this->sim.stations[this->station].start_process_ok_time,
+                this->sim,
+                this->station
+            ));
+
+            number_package_in_station << this->time << "," << this->station << ","
+                                      << this->sim.stations[this->station].buffer.size() << "\n";
             return;
         }
         if (this->sim.stations[this->station].buffer.empty()) {
-            fmt::println(
-                "[{:.3f}] {}] station {} failed to process one package, because there's no package.",
+            logs(
+                "[{:.3f}] station {} failed to process one package, because there's no package.",
                 this->time,
                 this->station,
                 this->station
             );
-            // file << "[" << this->time << "]" << " station " << this->station
-            //      << " failed to process one package, because there's no package.\n";
             return;
         }
+        // [process success]
         string earliest = *this->sim.stations[this->station].buffer.begin();
         for (const auto& package: this->sim.stations[this->station].buffer) {
             if (this->sim.packages[package].time_created
@@ -370,50 +393,57 @@ public:
         );
         if (path.size() == 1) {
             // already at src
-            fmt::println(
-                "[{:.3f}] {}] station {} is already at the src of {}, final process and SENT.",
+            logs(
+                "[{:.3f}] station {} is already at the src of {}, final process and SENT.",
                 this->time,
                 this->station,
                 this->station,
                 earliest
             );
-            // file << "[" << this->time << "]" << " station " << this->station
-            //      << " is already at the src of " << earliest << ", final process and SENT.\n";
             assert(this->station == this->sim.packages[earliest].dst);
             // this->sim.stations[this->station].buffer.erase(earliest);
             // this->sim.stations[this->station].processing_package = earliest;
-            this->sim.stations[this->station].take_package_from_buffer_to_processing(earliest);
+            // 会修改 ok_time
+            this->sim.stations[this->station].take_package_from_buffer_to_processing(
+                earliest,
+                this->time
+            );
             for (const auto& [id, station]: this->sim.stations) {
                 number_package_in_station << this->time << "," << id << "," << station.buffer.size()
                                           << "\n";
             }
             this->sim.schedule_event(new V1StartSend(
+                // [todo]
+                // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
                 this->time + this->sim.stations[this->station].process_time,
                 this->sim,
                 earliest,
                 this->station,
                 this->station
             ));
+            this->sim.schedule_event(new V1TryProcessOne(
+                this->sim.stations[this->station].start_process_ok_time,
+                this->sim,
+                this->station
+            ));
             package_trip << this->time << "," << earliest << "," << this->station << ","
                          << this->station << "\n";
             return;
         }
-        fmt::println(
-            "[{:.3f}] {}] station {} process {} and send to {}.",
+        logs(
+            "[{:.3f}] station {} process {} and send to {}.",
             this->time,
             this->station,
             this->station,
             earliest,
             path[1]
         );
-        // file << "[" << this->time << "]" << " station " << this->station << " process " << earliest
-        //      << " and send to " << path[1] << ".\n";
-        this->sim.stations[this->station].take_package_from_buffer_to_processing(earliest);
-
-        for (const auto& [id, station]: this->sim.stations) {
-            number_package_in_station << this->time << "," << id << "," << station.buffer.size()
-                                      << "\n";
-        }
+        this->sim.stations[this->station].take_package_from_buffer_to_processing(
+            earliest,
+            this->time
+        );
+        number_package_in_station << this->time << "," << this->station << ","
+                                  << this->sim.stations[this->station].buffer.size() << "\n";
         this->sim.schedule_event(new V1StartSend(
             this->time + this->sim.stations[this->station].process_time,
             this->sim,
@@ -428,22 +458,11 @@ public:
 
 void Arrival::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
+    // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
     std::ofstream package_trip("package_trip.csv", std::ios::app);
 
-    println(
-        "[{:.3f}] {}] Arrival pack {}: {}",
-        this->time,
-        this->station,
-        this->package,
-        this->station
-    );
-    // file << "[" << this->time << "]" << " Arrival pack " << this->package << ": " << this->station
-    //      << ".\n";
-
-    // this->sim.schedule_event(
-    //     new StartProcess(this->time, this->sim, this->package, this->dst, this->dst)
-    // );
+    logs("[{:.3f}] Arrival pack {}: {}", this->time, this->package, this->station);
     this->sim.stations[this->station].buffer.insert(this->package);
 
     for (const auto& [id, station]: this->sim.stations) {
@@ -458,16 +477,14 @@ void Arrival::process_event() {
 
 void V0StartProcess::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
-    println(
-        "[{:.3f}] {}] StartProcess pack {}: {} => {}",
+    logs(
+        "[{:.3f}] StartProcess pack {}: {} => {}",
         this->time,
         this->src,
         this->package,
         this->src,
         this->dst
     );
-    // file << "[" << this->time << "]" << " StartProcess pack" << this->package << ": " << this->src
-    //      << " => " << this->dst << ".\n";
     this->sim.schedule_event(new V1StartSend(
         this->time + this->sim.stations[this->src].process_time,
         this->sim,
@@ -480,38 +497,37 @@ void V0StartProcess::process_event() {
 void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
-    println(
-        "[{:.3f}] {}] StartSend pack {}: {} => {}",
-        this->time,
-        this->src,
-        this->package,
-        this->src,
-        this->dst
-    );
-    // file << "[" << this->time << "]" << " StartSent pack" << this->package << ": " << this->src
-    //      << " => " << this->dst << ".\n";
+    logs("[{:.3f}] StartSend pack {}: {} => {}", this->time, this->package, this->src, this->dst);
     if (this->sim.packages[this->package].dst == this->src) {
         // package has arrived
-        this->sim.stations[this->src].processing_package.reset();
         this->sim.finish_order(this->package, this->time);
         return;
     }
-    this->sim.stations[this->src].processing_package.reset();
     this->sim.schedule_event(new Arrival(
         this->time + this->sim.routes[this->src][0].time,
         this->sim,
         this->package,
         this->dst
     ));
-    // try process one right now
-    this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
+    // try process one right now (but after this StartSend guranteed by event push)
+    // this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
 }
 
 void Simulation::add_order(string id, double time, PackageCategory ctg, string src, string dst) {
-    this->id_cnt += 1;
+    // this->id_cnt += 1;
     // string id = std::to_string(this->id_cnt);
     this->packages[id] = Package { id, ctg, time, src, dst };
     this->schedule_event(new Arrival(time, *this, id, src));
+}
+
+TEST_CASE("simple") {
+    Simulation sim;
+    sim.add_station("a", 10, 4.5);
+    sim.add_station("b", 20, 2);
+    sim.add_route("a", "b", 100, 1200);
+    sim.add_order("p1", 100, PackageCategory::STANDARD, "a", "b");
+    sim.add_order("p2", 100, PackageCategory::EXPRESS, "a", "b");
+    sim.run();
 }
 
 TEST_CASE("main") {
