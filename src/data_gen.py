@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import uuid
 from sklearn.cluster import KMeans
+import os
+# print("Current working directory:", os.getcwd())
 
 parameters = {
     "station_num": 25,
@@ -151,33 +153,33 @@ def data_gen():
 
 if __name__ == '__main__':
     data = data_gen()
-    # with open("data.txt", "w") as f:
-    #     f.write("stations:"+"\n")
-    #     for i, station in enumerate(data["station_id"]):
-    #         f.write(station+' , '+
-    #                 # str(data["station_pos"][i])+" , "+
-    #                 str(data["station_prop"][i])+"\n")
+    with open("./build/data.txt", "w") as f:
+        f.write("stations:"+"\n")
+        for i, station in enumerate(data["station_id"]):
+            f.write(station+' , '+
+                    # str(data["station_pos"][i])+" , "+
+                    str(data["station_prop"][i])+"\n")
 
-    #     # f.write("centers:"+"\n")
-    #     for i, center in enumerate(data["center_id"]):
-    #         f.write(center+' , '+
-    #                 # str(data["center_pos"][i])+" , "+
-    #                 str(data["center_prop"][i])+"\n")
+        # f.write("centers:"+"\n")
+        for i, center in enumerate(data["center_id"]):
+            f.write(center+' , '+
+                    # str(data["center_pos"][i])+" , "+
+                    str(data["center_prop"][i])+"\n")
 
-    #     f.write("edges:"+"\n")
-    #     for i, edge in enumerate(data["edges"]):
-    #         f.write(str(edge[0])+" , "+
-    #                 str(edge[1])+" , "+
-    #                 str(edge[2])+" , "+
-    #                 str(edge[3])+"\n")
+        f.write("edges:"+"\n")
+        for i, edge in enumerate(data["edges"]):
+            f.write(str(edge[0])+" , "+
+                    str(edge[1])+" , "+
+                    str(edge[2])+" , "+
+                    str(edge[3])+"\n")
         
-    #     f.write("packets:"+"\n")
-    #     for i, packet in enumerate(data["packets"]):
-    #         f.write(str(uuid.uuid4())+" , "+
-    #                 str(packet[0])+" , "+
-    #                 str(packet[1])+" , "+
-    #                 str(packet[2])+" , "+
-    #                 str(packet[3])+"\n") 
+        f.write("packets:"+"\n")
+        for i, packet in enumerate(data["packets"]):
+            f.write(str(uuid.uuid4())+" , "+
+                    str(packet[0])+" , "+
+                    str(packet[1])+" , "+
+                    str(packet[2])+" , "+
+                    str(packet[3])+"\n") 
     
     with open("positions.csv", "w") as f:
         for i, station in enumerate(data["station_id"]):
@@ -188,3 +190,8 @@ if __name__ == '__main__':
             f.write(center+','+
                     str(data["center_pos"][i][0])+','+
                     str(data["center_pos"][i][1])+"\n")
+            
+    with open("routes.csv", "w") as f:
+        for i, edge in enumerate(data["edges"]):
+            f.write(edge[0]+','+
+                    edge[1]+'\n')

@@ -318,14 +318,20 @@ public:
         // std::ofstream file("output.txt", std::ios::app);
         std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
 
-        fmt::println("[{:.3f}] station {} try to process one.", this->time, this->station);
+        fmt::println(
+            "[{:.3f}] {}] station {} try to process one.",
+            this->time,
+            this->station,
+            this->station
+        );
         // file << "[" << this->time << "]" << " station " << this->station
         //  << " try to process one.\n";
         if (this->sim.stations[this->station].processing_package.has_value()) {
             // gg
             fmt::println(
-                "[{:.3f}] station {} failed to process one package, because it's busy.",
+                "[{:.3f}] {}] station {} failed to process one package, because it's busy.",
                 this->time,
+                this->station,
                 this->station
             );
             // file << "[" << this->time << "]" << " station " << this->station
@@ -334,8 +340,9 @@ public:
         }
         if (this->sim.stations[this->station].buffer.empty()) {
             fmt::println(
-                "[{:.3f}] station {} failed to process one package, because there's no package.",
+                "[{:.3f}] {}] station {} failed to process one package, because there's no package.",
                 this->time,
+                this->station,
                 this->station
             );
             // file << "[" << this->time << "]" << " station " << this->station
@@ -360,8 +367,9 @@ public:
         if (path.size() == 1) {
             // already at src
             fmt::println(
-                "[{:.3f}] station {} is already at the src of {}, final process and SENT.",
+                "[{:.3f}] {}] station {} is already at the src of {}, final process and SENT.",
                 this->time,
+                this->station,
                 this->station,
                 earliest
             );
@@ -385,8 +393,9 @@ public:
             return;
         }
         fmt::println(
-            "[{:.3f}] station {} process {} and send to {}.",
+            "[{:.3f}] {}] station {} process {} and send to {}.",
             this->time,
+            this->station,
             this->station,
             earliest,
             path[1]
@@ -413,7 +422,13 @@ void Arrival::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
 
-    println("[{:.3f}] Arrival pack {}: {}", this->time, this->package, this->station);
+    println(
+        "[{:.3f}] {}] Arrival pack {}: {}",
+        this->time,
+        this->station,
+        this->package,
+        this->station
+    );
     // file << "[" << this->time << "]" << " Arrival pack " << this->package << ": " << this->station
     //      << ".\n";
 
@@ -433,8 +448,9 @@ void Arrival::process_event() {
 void V0StartProcess::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     println(
-        "[{:.3f}] StartProcess pack {}: {} => {}",
+        "[{:.3f}] {}] StartProcess pack {}: {} => {}",
         this->time,
+        this->src,
         this->package,
         this->src,
         this->dst
@@ -454,8 +470,9 @@ void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
     println(
-        "[{:.3f}] StartSend pack {}: {} => {}",
+        "[{:.3f}] {}] StartSend pack {}: {} => {}",
         this->time,
+        this->src,
         this->package,
         this->src,
         this->dst
