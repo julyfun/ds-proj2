@@ -17,6 +17,7 @@ app = Dash(__name__, external_stylesheets=external_stylesheets)
 event_list = pd.read_csv("./build/output.txt", skiprows=3, sep=']', header=None, names=["time", "station", "event"])
 event_list = event_list[event_list['time'].str.startswith('[')].iloc[:-3]
 event_list['time'] = event_list['time'].apply(lambda x: x.lstrip('['))
+time_of_selected_station = pd.DataFrame(columns=['time'])
 
 station = event_list['station']
 times = event_list['time']
@@ -31,29 +32,50 @@ routes = pd.read_csv("routes.csv", sep=',', header=None, names=["src", "dst"])
 
 # UI
 app.layout = html.Div([
+    html.H1(
+        children="Package Distribution System by 后排靠窗四高手",
+        style={
+            'textAlign': 'center',
+            'color': '#111111'
+        }),
     dcc.Graph(id='graph-with-slider'),
     dcc.Slider(
         id='time-slider',
         min=pos_and_num['time'].min(),
         max=pos_and_num['time'].max(),
-        value_slider=pos_and_num['time'].min(),
+        value=pos_and_num['time'].min(),
         marks={str(hour): str(hour) for hour in pos_and_num['time'].unique()},
         step=None
     ),
 
-    html.Label('Select one station to check'),
-    dcc.Dropdown(
-        options=[
-            {"label": s, "value": s} for s in pos_and_num['station'].unique()
-        ],
-        value='s0',
-    ),
-    html.Br(),
+    html.Div([
+        html.Div([
+            html.Label('Select one with station to check'),
+            dcc.Dropdown(
+                id='station-dropdown',
+                options=[
+                    {"label": s, "value": s} for s in pos_and_num['station'].unique()
+                ],
+                value='s0',
+            ),
+        ], style={'width': '48%', 'display': 'inline-block'}),
+        html.Div([
+            html.Label('Select one with time to check'),
+            dcc.Dropdown(
+                id='time-dropdown',
+                options=[],
+                value=None,
+            ),
+        ], style={'width': '48%', 'display': 'inline-block'}),
+    ]),
+
+    html.Div(id='check_output',
+             style={'margin-top': 20, 'background-color': 'lightgray', 'padding': '10px'})
 ])
 
 @app.callback(
     Output('graph-with-slider', 'figure'),
-    Input('time-slider', 'value_slider')
+    [Input('time-slider', 'value'),]
 )
 
 def update_figure(selected_time):
@@ -105,18 +127,42 @@ def update_figure(selected_time):
             line=dict(color=line_color,
                       width=2,
                       dash=dash),
-            hoverinfo='text',
-            hovertext=(row['src'], row['dst']),
+            hoverinfo='none',
+            showlegend=False,
             opacity=0.2,
         ))
-
 
     fig.update_layout(transition_duration=200,
                        width=1000,
                        height=800)  
     return fig
 
+@app.callback(
+    Output('time-dropdown', 'options'),
+    Input('station-dropdown', 'value'),
+)
+def update_time_options(selected_station):
+    time_of_selected_station = pd.DataFrame(columns=['time'])
+    for index, row in event_list.iterrows():
+        if row['station'].strip() == selected_station:
+            time_of_selected_station.loc[len(time_of_selected_station)] = row['time']
+    time_options = [{'label': i, 'value': i} for i in time_of_selected_station['time'].unique()]
+    return time_options
+
+@app.callback(
+    Output('check_output', 'children'),
+    Input('station-dropdown', 'value'),
+    Input('time-dropdown', 'value'),
+)
+
+def update_check_output(selected_station, selected_time):
+    events = []
+    for index, row in event_list.iterrows():
+        if row['station'].strip() == selected_station and row['time'].strip() == selected_time:
+            events.append(row['event']+" ")
+    
+    return f"You selected Station {selected_station} at Time {selected_time}, the event is: \n{''.join(events)}"
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
 
