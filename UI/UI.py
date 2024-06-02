@@ -4,7 +4,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, html, dcc, Input, Output
+from dash import Dash, html, dcc, Input, Output, State, no_update
 import os
 # print("Current working directory:", os.getcwd())
 
@@ -27,7 +27,7 @@ position = pd.read_csv("positions.csv", sep=',', header=None, names=["station", 
 
 pos_and_num = pd.merge(position, num_pack_in_station, on="station")
 
-routes = pd.read_csv("routes.csv", sep=',', header=None, names=["src", "dst"])
+routes = pd.read_csv("routes.csv", sep=',', header=None, names=["src", "dst", "time_cost"])
 
 # UI
 app.layout = html.Div([
@@ -72,6 +72,10 @@ app.layout = html.Div([
              style={'margin-top': 20, 'background-color': 'lightgray', 'padding': '10px'}),
 
     dcc.Graph(id='animation-with-events'),
+    html.Div([
+        html.Button('Start/Stop', id='start-stop-button', n_clicks=0, style={'margin-top': 10}),   
+    ], style={'textAlign': 'center'}),
+    
     dcc.Interval(
         id='interval-component',
         interval=1*1000,
@@ -171,10 +175,21 @@ def update_check_output(selected_station, selected_time):
 
 @app.callback(
     Output('animation-with-events', 'figure'),
-    Input('interval-component', 'n_intervals'),
+    [Input('interval-component', 'n_intervals')],
+    [State('start-stop-button', 'n_clicks')]
 )
 
-def update_animation(n):
+def update_animation(n, click):    
+    global update_graph
+
+    if click % 2 == 0:
+        update_graph = False
+    else:
+        update_graph = True
+    
+    if not update_graph:
+        return no_update
+    
     lastest_data = event_list[event_list['time'].astype(float) <= n]
     lastest_data = lastest_data.tail(100)
 
@@ -186,6 +201,7 @@ def update_animation(n):
                      width=1000,
                      height=800)
     fig.update_traces(marker=dict(size=10))
+
     return fig
 
 if __name__ == '__main__':
