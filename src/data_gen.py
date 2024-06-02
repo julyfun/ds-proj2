@@ -179,10 +179,12 @@ if __name__ == '__main__':
     #                 str(packet[2])+" , "+
     #                 str(packet[3])+"\n") 
     
-    with open("positions.txt", "w") as f:
+    with open("positions.csv", "w") as f:
         for i, station in enumerate(data["station_id"]):
-            f.write(station+' , '+
-                    str(data["station_pos"][i])+"\n")
+            f.write(station+','+
+                    str(data["station_pos"][i][0])+','+
+                    str(data["station_pos"][i][1])+"\n")
         for i, center in enumerate(data["center_id"]):
-            f.write(center+' , '+
-                    str(data["center_pos"][i])+"\n")
+            f.write(center+','+
+                    str(data["center_pos"][i][0])+','+
+                    str(data["center_pos"][i][1])+"\n")

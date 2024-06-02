@@ -3,51 +3,73 @@
 
 import pandas as pd
 import plotly.express as px
-from dash import Dash, html, dcc
+import plotly.graph_objects as go
+from dash import Dash, html, dcc, Input, Output
+import os
+# print("Current working directory:", os.getcwd())
+
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 # app = Dash()
 
-colors = {
-    'background': '#111111',
-    'text': '#7FDBFF'
-}  # 预设样式
+# colors = {
+#     'background': '#111111',
+#     'text': '#7FDBFF'
+# }  
+event_list = pd.read_csv("./build/output.txt", skiprows=3, sep=']', header=None, names=["time", "event"])
+event_list = event_list[event_list['time'].str.startswith('[')].applymap(lambda x: x.lstrip('[')).iloc[:-3]
 
-df = pd.DataFrame({'x': [1, 2, 3], 'SF': [4, 1, 2], 'Montreal': [2, 4, 5]})  # 原始数据
 
-fig = px.bar(df, x='x', y=['SF', 'Montreal'], barmode='group')  # 柱状图
+print(event_list)
+num_pack_in_station = pd.read_csv("./build/number_package_in_station.csv", sep=',', header=None, names=["time", "station", "num_pack_in_buffer"])
 
-fig.update_layout(
-    plot_bgcolor=colors['background'],
-    paper_bgcolor=colors['background'],
-    font_color=colors['text']
-)  # 更新柱状图样式
+position = pd.read_csv("positions.csv", sep=',', header=None, names=["station", "position_x", "position_y"])
 
-app.layout = html.Div(
-    style={'backgroundColor': colors['background']},  # 全局样式
-    children=[
-        html.H1(
-            children='Hello Dash',
-            style={
-                'textAlign': 'center',
-                'color': colors['text']
-            }
+pos_and_num = pd.merge(position, num_pack_in_station, on="station")
+
+app.layout = html.Div([
+    dcc.Graph(id='graph-with-slider'),
+    dcc.Slider(
+        id='time-slider',
+        min=pos_and_num['time'].min(),
+        max=pos_and_num['time'].max(),
+        value=pos_and_num['time'].min(),
+        marks={str(hour): str(hour) for hour in pos_and_num['time'].unique()},
+        step=None
+    )
+])
+
+
+@app.callback(
+    Output('graph-with-slider', 'figure'),
+    [Input('time-slider', 'value')]
+)
+
+
+def update_figure(selected_time):
+    filtered_df = pos_and_num[pos_and_num['time'] == selected_time]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=filtered_df['position_x'],
+        y=filtered_df['position_y'],
+        mode='markers',
+        marker=dict(
+            # size=1,
+            color='LightSkyBlue',
+            opacity=0.5,
         ),
+        hoverinfo='text',
+        hovertext=filtered_df['station'],
+    ))
+    fig.update_traces(marker=dict(size=filtered_df['num_pack_in_buffer']))
 
-        html.Div(
-            children='Dash: 一款Python web应用框架',
-            style={
-                'textAlign': 'center',
-                'color': colors['text']
-            }
-        ),
+    fig.update_layout(transition_duration=500)  # 过渡时间
+    return fig
 
-        dcc.Graph(
-            id='example-graph-2',
-            figure=fig
-        )
-    ])
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+

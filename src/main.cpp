@@ -156,9 +156,9 @@ public:
 };
 
 void Simulation::run() {
-    std::ofstream file("output.txt");
+    // std::ofstream file("output.txt");
     std::ofstream number_package_in_station("number_package_in_station.csv");
-    file.clear();
+    // file.clear();
     number_package_in_station.clear();
     while (!this->event_queue.empty()) {
         Event* event = this->event_queue.top();
@@ -315,12 +315,12 @@ public:
     V1TryProcessOne(double t, Simulation& sim, string station): Event(t, sim), station(station) {}
 
     void process_event() override {
-        std::ofstream file("output.txt", std::ios::app);
+        // std::ofstream file("output.txt", std::ios::app);
         std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
 
         fmt::println("[{:.3f}] station {} try to process one.", this->time, this->station);
-        file << "[" << this->time << "]" << " station " << this->station
-             << " try to process one.\n";
+        // file << "[" << this->time << "]" << " station " << this->station
+        //  << " try to process one.\n";
         if (this->sim.stations[this->station].processing_package.has_value()) {
             // gg
             fmt::println(
@@ -328,11 +328,8 @@ public:
                 this->time,
                 this->station
             );
-            file << "[" << this->time << "]" << " station " << this->station
-                 << " failed to process one package, because it's busy.\n";
-
-            number_package_in_station << this->time << "," << this->station << ","
-                                      << this->sim.stations[this->station].buffer.size() << "\n";
+            // file << "[" << this->time << "]" << " station " << this->station
+            //      << " failed to process one package, because it's busy.\n";
             return;
         }
         if (this->sim.stations[this->station].buffer.empty()) {
@@ -341,8 +338,8 @@ public:
                 this->time,
                 this->station
             );
-            file << "[" << this->time << "]" << " station " << this->station
-                 << " failed to process one package, because there's no package.\n";
+            // file << "[" << this->time << "]" << " station " << this->station
+            //      << " failed to process one package, because there's no package.\n";
             return;
         }
         string earliest = *this->sim.stations[this->station].buffer.begin();
@@ -368,14 +365,16 @@ public:
                 this->station,
                 earliest
             );
-            file << "[" << this->time << "]" << " station " << this->station
-                 << " is already at the src of " << earliest << ", final process and SENT.\n";
+            // file << "[" << this->time << "]" << " station " << this->station
+            //      << " is already at the src of " << earliest << ", final process and SENT.\n";
             assert(this->station == this->sim.packages[earliest].dst);
             // this->sim.stations[this->station].buffer.erase(earliest);
             // this->sim.stations[this->station].processing_package = earliest;
             this->sim.stations[this->station].take_package_from_buffer_to_processing(earliest);
-            number_package_in_station << this->time << "," << this->station << ","
-                                      << this->sim.stations[this->station].buffer.size() << "\n";
+            for (const auto& [id, station]: this->sim.stations) {
+                number_package_in_station << this->time << "," << id << "," << station.buffer.size()
+                                          << "\n";
+            }
             this->sim.schedule_event(new V1StartSend(
                 this->time + this->sim.stations[this->station].process_time,
                 this->sim,
@@ -392,11 +391,14 @@ public:
             earliest,
             path[1]
         );
-        file << "[" << this->time << "]" << " station " << this->station << " process " << earliest
-             << " and send to " << path[1] << ".\n";
+        // file << "[" << this->time << "]" << " station " << this->station << " process " << earliest
+        //      << " and send to " << path[1] << ".\n";
         this->sim.stations[this->station].take_package_from_buffer_to_processing(earliest);
-        number_package_in_station << this->time << "," << this->station << ","
-                                  << this->sim.stations[this->station].buffer.size() << "\n";
+
+        for (const auto& [id, station]: this->sim.stations) {
+            number_package_in_station << this->time << "," << id << "," << station.buffer.size()
+                                      << "\n";
+        }
         this->sim.schedule_event(new V1StartSend(
             this->time + this->sim.stations[this->station].process_time,
             this->sim,
@@ -408,25 +410,28 @@ public:
 };
 
 void Arrival::process_event() {
-    std::ofstream file("output.txt", std::ios::app);
+    // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
 
     println("[{:.3f}] Arrival pack {}: {}", this->time, this->package, this->station);
-    file << "[" << this->time << "]" << " Arrival pack " << this->package << ": " << this->station
-         << ".\n";
+    // file << "[" << this->time << "]" << " Arrival pack " << this->package << ": " << this->station
+    //      << ".\n";
 
     // this->sim.schedule_event(
     //     new StartProcess(this->time, this->sim, this->package, this->dst, this->dst)
     // );
     this->sim.stations[this->station].buffer.insert(this->package);
-    number_package_in_station << this->time << "," << this->station << ","
-                              << this->sim.stations[this->station].buffer.size() << "\n";
+
+    for (const auto& [id, station]: this->sim.stations) {
+        number_package_in_station << this->time << "," << id << "," << station.buffer.size()
+                                  << "\n";
+    }
     this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->station));
     // this->sim.schedule_event();
 }
 
 void V0StartProcess::process_event() {
-    std::ofstream file("output.txt", std::ios::app);
+    // std::ofstream file("output.txt", std::ios::app);
     println(
         "[{:.3f}] StartProcess pack {}: {} => {}",
         this->time,
@@ -434,8 +439,8 @@ void V0StartProcess::process_event() {
         this->src,
         this->dst
     );
-    file << "[" << this->time << "]" << " StartProcess pack" << this->package << ": " << this->src
-         << " => " << this->dst << ".\n";
+    // file << "[" << this->time << "]" << " StartProcess pack" << this->package << ": " << this->src
+    //      << " => " << this->dst << ".\n";
     this->sim.schedule_event(new V1StartSend(
         this->time + this->sim.stations[this->src].process_time,
         this->sim,
@@ -447,7 +452,7 @@ void V0StartProcess::process_event() {
 
 void V1StartSend::process_event() {
     // turn into fmt
-    std::ofstream file("output.txt", std::ios::app);
+    // std::ofstream file("output.txt", std::ios::app);
     println(
         "[{:.3f}] StartSend pack {}: {} => {}",
         this->time,
@@ -455,8 +460,8 @@ void V1StartSend::process_event() {
         this->src,
         this->dst
     );
-    file << "[" << this->time << "]" << " StartSent pack" << this->package << ": " << this->src
-         << " => " << this->dst << ".\n";
+    // file << "[" << this->time << "]" << " StartSent pack" << this->package << ": " << this->src
+    //      << " => " << this->dst << ".\n";
     if (this->sim.packages[this->package].dst == this->src) {
         // package has arrived
         this->sim.stations[this->src].processing_package.reset();
@@ -495,9 +500,7 @@ TEST_CASE("main") {
         bool is_stations_section = false;
         bool is_routes_section = false;
         bool is_orders_section = false;
-        std::cout << "Reading file..." << std::endl;
         while (std::getline(file, line)) {
-            std::cout << line << std::endl;
             if (line == "stations:") {
                 is_stations_section = true;
                 is_routes_section = false;
