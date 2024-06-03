@@ -37,6 +37,7 @@ public:
 
     Event(double t, Simulation& sim): time(t), sim(sim) {}
     virtual void process_event() = 0;
+    virtual ~Event() = default;
 
 protected:
     Simulation& sim;
