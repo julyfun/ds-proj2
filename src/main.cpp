@@ -69,10 +69,6 @@ struct TripInfo {
     TripType type;
 };
 
-struct DataBase {
-    map<string, vector<TripInfo>> package_trips;
-};
-
 // double get_last_arrival_time(const DataBase& db, string package) {
 //     if (db.trips.find(package) == db.trips.end()) {
 //         return 0;
