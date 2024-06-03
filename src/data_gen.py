@@ -8,9 +8,9 @@ import os
 # print("Current working directory:", os.getcwd())
 
 parameters = {
-    "station_num": 25,
+    "station_num": 15,
     "center_num": 5,
-    "packet_num": 1000,
+    "packet_num": 2500,
     "money_cost_per_dist_airline": 0.2, # line 79
     "money_cost_per_dist_highway": 0.12,# line 92
     "money_cost_per_dist_road": 0.07,   # line 105
@@ -132,8 +132,9 @@ def data_gen():
         category = np.random.choice(2, p=speed_prob)
         category_name = ["PackageCategory::STANDARD", "PackageCategory::EXPRESS"]
         # Create time of the package, during 12 time ticks(hours). Of course you can change it.
-        create_time = np.random.random() * 12
-        packets.append((create_time, category, f"s{src}", f"s{dst}"))
+        create_time = np.random.random() * 1
+        id = uuid.uuid4()
+        packets.append((id, create_time, category, f"s{src}", f"s{dst}"))
     # Sort packets by create time
     packets.sort(key=lambda x: x[0])    # Sort by create time from small to large
     # Output Packets
@@ -175,11 +176,11 @@ if __name__ == '__main__':
         
         f.write("packets:"+"\n")
         for i, packet in enumerate(data["packets"]):
-            f.write(str(uuid.uuid4())+" , "+
-                    str(packet[0])+" , "+
+            f.write(str(packet[0])+" , "+
                     str(packet[1])+" , "+
                     str(packet[2])+" , "+
-                    str(packet[3])+"\n") 
+                    str(packet[3])+" , "+
+                    str(packet[4])+"\n") 
     
     with open("positions.csv", "w") as f:
         for i, station in enumerate(data["station_id"]):
@@ -196,3 +197,8 @@ if __name__ == '__main__':
             f.write(edge[0]+','+
                     edge[1]+','+
                     str(edge[2])+'\n')
+    
+    with open("package_ctg.csv", "w") as f:
+        for i, packet in enumerate(data["packets"]):
+            f.write(str(packet[0])+','+
+                    str(packet[2])+'\n')

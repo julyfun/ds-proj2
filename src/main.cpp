@@ -502,8 +502,9 @@ public:
             return;
         }
         logs(
-            "[{:.3f}] station {} process {} and send to station {}.",
+            "[{:.3f}] {}] station {} process {} and send to station {}.",
             this->time,
+            this->station,
             this->station,
             earlist_package,
             this->sim.routes[this->station][path[0]].dst
@@ -524,7 +525,7 @@ public:
             path[0]
         ));
         package_trip << this->time << "," << earlist_package << "," << this->station << ","
-                     << path[1] << "\n";
+                     << path[0] << "\n";
     }
 };
 
@@ -553,7 +554,7 @@ void Arrival::process_event() {
     // this->sim.schedule_event();
     // [test]
     // buffer size
-    logs("[{:.3f}] buffer size: {}", this->time, this->sim.stations[this->station].buffer.size());
+    // logs("[{:.3f}] buffer size: {}", this->time, this->sim.stations[this->station].buffer.size());
 }
 
 void V0StartProcess::process_event() {
@@ -582,8 +583,9 @@ void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
     logs(
-        "[{:.3f}] StartSend pack {}: {} => {}, time {}",
+        "[{:.3f}] {}] StartSend pack {}: {} => {}, time",
         this->time,
+        this->src,
         this->package,
         this->src,
         this->sim.routes[this->src][this->route].dst,
