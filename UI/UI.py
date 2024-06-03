@@ -31,7 +31,7 @@ pos_and_num = pd.merge(position, num_pack_in_station, on="station")
 routes = pd.read_csv("routes.csv", sep=',', header=None, names=["src", "dst", "time_cost"])
 
 package_trip = pd.read_csv("./build/package_trip.csv", sep=',', header=None, names=["time", "package_id", "src", "dst"])
-package_trip_new = pd.merge(package_trip, routes, on=["src", "dst"])
+# package_trip_new = pd.merge(package_trip, routes, on=["src", "dst"])
 
 package_ctg = pd.read_csv("package_ctg.csv", sep=',', header=None, names=["package_id", "category"])
 
@@ -77,16 +77,28 @@ app.layout = html.Div([
     html.Div(id='check_output',
              style={'margin-top': 20, 'background-color': 'lightgray', 'padding': '10px'}),
 
-    dcc.Graph(id='animation-with-events'),
     html.Div([
-        html.Button('Start/Stop', id='start-stop-button', n_clicks=0, style={'margin-top': 10}),   
-    ], style={'textAlign': 'center'}),
+        html.Label('Select one with package id to check package in Graph'),
+        dcc.Dropdown(
+            id='package-id-dropdown-graph',
+            options=[
+                {"label": s, "value": s} for s in package_trip['package_id'].unique()
+            ],
+            value=package_trip['package_id'].iloc[0],
+        ),
+    ], style={'margin-top': 20}),
+
+    dcc.Graph(id='animation-with-events'),
+    # html.Div([
+    #     html.Button('Start/Stop', id='start-stop-button', n_clicks=0, style={'margin-top': 10}),   
+    # ], style={'textAlign': 'center'}),
     
-    dcc.Interval(
-        id='interval-component',
-        interval=1*1000,
-        n_intervals=0
-    ),
+    
+    # dcc.Interval(
+    #     id='interval-component',
+    #     interval=1*100,
+    #     n_intervals=0
+    # ),
 
     html.Div([
         html.Label('Select one with package id to check package'),
@@ -95,9 +107,10 @@ app.layout = html.Div([
             options=[
                 {"label": s, "value": s} for s in package_trip['package_id'].unique()
             ],
-            value='f70b5c66-9464-4575-96bc-5df22cb5a385',
+            value=package_trip['package_id'].iloc[0],
         ),
     ]),
+
     html.Div(id='check_pacakge',
              style={'margin-top': 20, 'background-color': 'lightgray', 'padding': '10px'}),
 ])
@@ -195,23 +208,26 @@ def update_check_output(selected_station, selected_time):
 
 @app.callback(
     Output('animation-with-events', 'figure'),
-    [Input('interval-component', 'n_intervals')],
-    [State('start-stop-button', 'n_clicks')]
+    [Input('package-id-dropdown-graph', 'value'),],
+    # [Input('interval-component', 'n_intervals')],
+    # [State('start-stop-button', 'n_clicks')]
 )
 
-def update_animation(n, click):   
-    global update_graph
+def update_animation(selected_package_id):   
+    # global update_graph
 
-    if click % 2 == 0:
-        update_graph = False
-    else:
-        update_graph = True
+    # if click % 2 == 0:
+    #     update_graph = False
+    # else:
+    #     update_graph = True
     
-    if not update_graph:
-        return no_update
+    # if not update_graph:
+    #     return no_update
     
-    lastest_data = package_trip_new[package_trip_new['time'].astype(float) <= n]
-    lastest_data = lastest_data.tail(5)
+    # lastest_data = package_trip_new[package_trip_new['time'].astype(float) <= n]
+    # lastest_data = lastest_data.tail(5)
+
+    filtered_package = package_trip[package_trip['package_id'].str.strip() == selected_package_id]
 
     fig = go.Figure()
     s = go.Scatter(x=pos_and_num['position_x'], 
@@ -224,33 +240,68 @@ def update_animation(n, click):
                    opacity=0.5)
     fig.add_trace(s)
 
-    for index, trip in lastest_data.iterrows():
-        src_x = position.loc[position['station']==trip['src']]['position_x'].values[0]
-        src_y = position.loc[position['station']==trip['src']]['position_y'].values[0]
-        dst_x = position.loc[position['station']==trip['dst']]['position_x'].values[0]
-        dst_y = position.loc[position['station']==trip['dst']]['position_y'].values[0]
-        ctg = package_ctg.loc[package_ctg['package_id']==trip['package_id']]['category'].values[0]
-        if trip['src']==trip['dst']:   
-            package = go.Scatter(x=[src_x], 
-                                 y=[src_y], 
-                                 mode='markers+text',
-                                 marker=dict(color='red' if ctg==1 else 'green', 
-                                             size=10),
-                                 text=trip['package_id'][:4],
-                                 name=trip['package_id'],
-                                 showlegend=False)
-        else:
-            package_x=(dst_x-src_x)*min(((n-float(trip['time']))/float(trip['time_cost'])),1)+src_x
-            package_y=(dst_y-src_y)*min(((n-float(trip['time']))/float(trip['time_cost'])),1)+src_y
-            package = go.Scatter(x=[package_x],
-                                y=[package_y],
-                                mode='markers+text',
-                                marker=dict(color='red' if ctg==1 else 'green', 
-                                            size=10),
-                                text=trip['package_id'][:4],
-                                name=trip['package_id'],
-                                showlegend=False)
-            fig.add_trace(package)
+    # for index, trip in lastest_data.iterrows():
+    #     src_x = position.loc[position['station']==trip['src']]['position_x'].values[0]
+    #     src_y = position.loc[position['station']==trip['src']]['position_y'].values[0]
+    #     dst_x = position.loc[position['station']==trip['dst']]['position_x'].values[0]
+    #     dst_y = position.loc[position['station']==trip['dst']]['position_y'].values[0]
+    #     ctg = package_ctg.loc[package_ctg['package_id']==trip['package_id']]['category'].values[0]
+    #     if trip['src']==trip['dst']:   
+    #         package = go.Scatter(x=[src_x], 
+    #                              y=[src_y], 
+    #                              mode='markers+text',
+    #                              marker=dict(color='red' if ctg==1 else 'green', 
+    #                                          size=10),
+    #                              text=trip['package_id'][:4],
+    #                              name=trip['package_id'],
+    #                              showlegend=False)
+    #     else:
+    #         package_x=(dst_x-src_x)*min(((n/10-float(trip['time']))/float(trip['time_cost'])),1)+src_x
+    #         package_y=(dst_y-src_y)*min(((n/10-float(trip['time']))/float(trip['time_cost'])),1)+src_y
+    #         package = go.Scatter(x=[package_x],
+    #                             y=[package_y],
+    #                             mode='markers+text',
+    #                             marker=dict(color='red' if ctg==1 else 'green', 
+    #                                         size=10),
+    #                             text=trip['package_id'][:4],
+    #                             name=trip['package_id'],
+    #                             showlegend=False)
+    #         fig.add_trace(package)
+    for index, trip in filtered_package.iterrows():
+        if trip['src'] != trip['dst']:
+            src_x = position.loc[position['station']==trip['src']]['position_x'].values[0]
+            src_y = position.loc[position['station']==trip['src']]['position_y'].values[0]
+            dst_x = position.loc[position['station']==trip['dst']]['position_x'].values[0]
+            dst_y = position.loc[position['station']==trip['dst']]['position_y'].values[0]
+            ctg = package_ctg.loc[package_ctg['package_id']==trip['package_id']]['category'].values[0]
+
+            trace = go.Scatter(
+                x=[src_x, dst_x],
+                y=[src_y, dst_y],
+                mode='lines+text',
+                name=trip['time'],
+                line=dict(color='red' if ctg==1 else 'green', 
+                          width=2),
+            )
+            fig.add_trace(trace)
+            arrow_annotation = go.layout.Annotation(
+                x=dst_x,
+                y=dst_y,
+                ax=(src_x+dst_x)/2,
+                ay=(src_y+dst_y)/2,
+                xref='x',
+                yref='y',
+                axref='x',
+                ayref='y',
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor='red' if ctg==1 else 'green',
+                text=trip['src']+'=>'+trip['dst'],
+                font=dict(size=16),
+            )
+            fig.add_annotation(arrow_annotation)
 
     for index, row in routes.iterrows():
         src_type = row['src'][0]
@@ -282,7 +333,7 @@ def update_animation(n, click):
             opacity=0.2,
         )) 
 
-    fig.update_traces(marker=dict(size=5))
+    fig.update_traces(marker=dict(size=10))
     fig.update_layout(
                     width=1000,
                     height=800) 
