@@ -18,3 +18,15 @@ make
 ## 学习资料
 
 - 事件驱动编程: https://stdcxx.apache.org/doc/stdlibug/11-3.html
+
+## 策略设计
+
+### V1
+
+![](doc/img/v1.svg)
+
+## 评估函数
+
+### V1
+
+运输成本 + 快包裹运输时间 _ 10 + 慢包裹运输时间 _ 5
