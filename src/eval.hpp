@@ -5,10 +5,13 @@
 #include <string>
 
 #include "base.hpp"
+#include "fmt/color.h"
+#include "fmt/core.h"
 #include "log.hpp"
 
 namespace eval {
 using log::logs;
+using log::logs_cargo;
 using std::map;
 using std::string;
 using namespace base;
@@ -34,15 +37,22 @@ struct EvalFuncV0: public EvalFunc {
         const map<string, PackageDynamicInfo>& dyn
     ) override {
         double tot_cost = transport_cost;
+        logs_cargo("Evaluate", "transport cost: {}", transport_cost);
         for (const auto& [id, pkg]: pkgs) {
             if (!dyn.at(id).finished) {
                 tot_cost += 1e6;
-                logs("package {} not finished", id);
+                logs_cargo("Evaluate", "package {} not finished", id);
                 continue;
             }
             double time_cost = dyn.at(id).time_finished - pkg.time_created;
             double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 10 : 5);
-            logs("package {} finished at {}, cost {}", id, dyn.at(id).time_finished, cost);
+            logs_cargo(
+                "Evaluate",
+                "package {} finished at {}, cost {}",
+                id,
+                dyn.at(id).time_finished,
+                cost
+            );
             tot_cost += cost;
         }
         return tot_cost;
