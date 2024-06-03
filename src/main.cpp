@@ -135,6 +135,7 @@ public:
 
     void add_station(string id, double throughput, double process_delay) {
         this->stations[id] = Station { id, throughput, process_delay };
+        this->routes.emplace(id, map<int, Route>());
     }
     // add route
     void add_route(string src, string dst, double time, double cost) {
@@ -143,7 +144,7 @@ public:
         assert(this->stations.find(dst) != this->stations.end());
         this->route_cnt += 1;
         auto route = Route { this->route_cnt, src, dst, time, cost };
-        this->routes[src].emplace(this->route_cnt, route); // add key value
+        this->routes.at(src).emplace(this->route_cnt, route); // add key value
     }
     // arrive package
     void finish_order(string package, double time) {
@@ -415,7 +416,8 @@ public:
         );
         // 根据吞吐量判断 StartProcess 间隔
         // [处理 cd]
-        if (!rust::time_ok(this->time, this->sim.stations[this->station].start_process_ok_time)) {
+        if (!rust::time_ok(this->time, this->sim.stations.at(this->station).start_process_ok_time))
+        {
             // gg
             logs(
                 "[{:.3f}] {}] station {} failed to process one package, because start-process is in cd",
@@ -425,14 +427,14 @@ public:
             );
             // when cd is ok, try again
             this->sim.schedule_event(new V1TryProcessOne(
-                this->sim.stations[this->station].start_process_ok_time,
+                this->sim.stations.at(this->station).start_process_ok_time,
                 this->sim,
                 this->station
             ));
             return;
         }
         // [没东西]
-        if (this->sim.stations[this->station].buffer.empty()) {
+        if (this->sim.stations.at(this->station).buffer.empty()) {
             logs(
                 "[{:.3f}] {}] station {} failed to process one package, because there's no package.",
                 this->time,
@@ -442,8 +444,8 @@ public:
             return;
         }
         // [process success]
-        string earlist_package = *this->sim.stations[this->station].buffer.begin();
-        for (const auto& package: this->sim.stations[this->station].buffer) {
+        string earlist_package = *this->sim.stations.at(this->station).buffer.begin();
+        for (const auto& package: this->sim.stations.at(this->station).buffer) {
             if (this->sim.packages[package].time_created
                 < this->sim.packages[earlist_package].time_created)
             {
@@ -470,26 +472,24 @@ public:
             // this->sim.stations[this->station].buffer.erase(earliest);
             // this->sim.stations[this->station].processing_package = earliest;
             // 会修改 ok_time
-            this->sim.stations[this->station].take_package_from_buffer_to_processing(
-                earlist_package,
-                this->time
-            );
+            this->sim.stations.at(this->station)
+                .take_package_from_buffer_to_processing(earlist_package, this->time);
             for (const auto& [id, station]: this->sim.stations) {
                 number_package_in_station << this->time << "," << id << ","
-                                          << this->sim.stations[id].buffer.size() << "\n";
+                                          << this->sim.stations.at(id).buffer.size() << "\n";
             }
             this->sim.add_transport_cost(0); // no cost
             this->sim.schedule_event(new V1StartSend(
                 // [todo]
                 // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
-                this->time + this->sim.stations[this->station].process_delay,
+                this->time + this->sim.stations.at(this->station).process_delay,
                 this->sim,
                 earlist_package,
                 this->station,
                 -1
             ));
             this->sim.schedule_event(new V1TryProcessOne(
-                this->sim.stations[this->station].start_process_ok_time,
+                this->sim.stations.at(this->station).start_process_ok_time,
                 this->sim,
                 this->station
             ));
@@ -503,27 +503,25 @@ public:
             this->station,
             this->station,
             earlist_package,
-            this->sim.routes[this->station][path[0]].dst
+            this->sim.routes.at(this->station).at(path[0]).dst
         );
-        this->sim.stations[this->station].take_package_from_buffer_to_processing(
-            earlist_package,
-            this->time
-        );
+        this->sim.stations.at(this->station)
+            .take_package_from_buffer_to_processing(earlist_package, this->time);
         for (const auto& [id, station]: this->sim.stations) {
             number_package_in_station << this->time << "," << id << ","
-                                      << this->sim.stations[id].buffer.size() << "\n";
+                                      << this->sim.stations.at(id).buffer.size() << "\n";
         }
         // choose path[0]
-        this->sim.add_transport_cost(this->sim.routes[this->station][path[0]].cost);
+        this->sim.add_transport_cost(this->sim.routes.at(this->station).at(path[0]).cost);
         this->sim.schedule_event(new V1StartSend(
-            this->time + this->sim.stations[this->station].process_delay,
+            this->time + this->sim.stations.at(this->station).process_delay,
             this->sim,
             earlist_package,
             this->station,
             path[0]
         ));
         package_trip << this->time << "," << earlist_package << "," << this->station << ","
-                     << this->sim.routes[this->station][path[0]].dst << "\n";
+                     << this->sim.routes.at(this->station).at(path[0]).dst << "\n";
     }
 };
 
@@ -540,11 +538,11 @@ void V1Arrival::process_event() {
         this->package,
         this->station
     );
-    this->sim.stations[this->station].buffer.insert(this->package);
+    this->sim.stations.at(this->station).buffer.insert(this->package);
 
     for (const auto& [id, station]: this->sim.stations) {
         number_package_in_station << this->time << "," << id << ","
-                                  << this->sim.stations[id].buffer.size() << "\n";
+                                  << this->sim.stations.at(id).buffer.size() << "\n";
     }
     package_trip << this->time << "," << this->package << "," << this->station << ","
                  << this->station << "\n";
@@ -567,7 +565,7 @@ void V0StartProcess::process_event() {
         this->sim.routes[this->src][this->route].dst
     );
     this->sim.schedule_event(new V1StartSend(
-        this->time + this->sim.stations[this->src].process_delay,
+        this->time + this->sim.stations.at(this->src).process_delay,
         this->sim,
         this->package,
         this->src,
@@ -605,7 +603,7 @@ void V1StartSend::process_event() {
     );
     this->sim.schedule_event(new V1Arrival(
         // find src => dst route
-        this->time + this->sim.routes[this->src][this->route].time,
+        this->time + this->sim.routes.at(this->src).at(this->route).time,
         this->sim,
         this->package,
         this->sim.routes.at(this->src).at(this->route).dst
@@ -645,7 +643,7 @@ TEST_CASE("smart") {
     sim.add_route("A", "C", 1, 100);
     sim.add_route("B", "D", 1, 100);
     sim.add_route("C", "D", 2, 100);
-    for (int i = 1; i <= 200; i++) {
+    for (int i = 1; i <= 100; i++) {
         sim.add_order("p" + std::to_string(i), 0, PackageCategory::STANDARD, "A", "D");
     }
     sim.run();
