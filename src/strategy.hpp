@@ -7,9 +7,11 @@
 #include <vector>
 
 #include "base.hpp"
+#include "log.hpp"
 
 namespace strategy {
 using namespace base;
+using log::logs_cargo;
 using std::greater;
 using std::map;
 using std::pair;
@@ -33,6 +35,7 @@ inline vector<int> dijkstra(
     string src,
     string dst
 ) {
+    logs_cargo("Info", "dijkstra called");
     map<string, double> dist;
     map<string, pair<string, int>> prev; // nodes' prev station and route
     for (const auto& [id, station]: stations) {
@@ -94,6 +97,8 @@ inline vector<int> dijkstra_enhanced(
     string src,
     string dst
 ) {
+    // called
+    logs_cargo("Info", "dijkstra_enhanced called");
     map<string, double> dist;
     map<string, pair<string, int>> prev; // nodes' prev station and route
     for (const auto& [id, station]: stations) {
@@ -138,7 +143,10 @@ inline vector<int> dijkstra_enhanced(
             }
         }
     }
-    // print prevs
+    // if failed
+    if (prev.find(dst) == prev.end()) {
+        return dijkstra(stations, routes, src, dst);
+    }
 
     vector<int> path;
     // for (string at = dst; at != ""; at = prev[at]) {

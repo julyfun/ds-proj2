@@ -24,6 +24,7 @@ public:
     double process_delay;
     double cost;
 
+    // dynamic
     set<string> buffer;
     // 下一个可以开始处理的时间
     double start_process_ok_time = std::numeric_limits<double>::min();
