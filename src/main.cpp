@@ -56,6 +56,7 @@ struct EventComparator {
 };
 
 struct Route {
+    int id;
     string src;
     string dst;
     double time;
@@ -130,13 +131,14 @@ private:
     std::priority_queue<Event*, std::vector<Event*, std::allocator<Event*>>, EventComparator>
         event_queue;
     int arrived = 0;
+    int route_cnt = 0;
     double total_time = 0;
     // int id_cnt = 0;
 
 public:
     DataBase db;
     map<string, Station> stations;
-    map<string, vector<Route>> routes;
+    map<string, map<int, Route>> routes;
     map<string, Package> packages;
 
     // map<string, map<string,
@@ -148,8 +150,10 @@ public:
     void schedule_event(Event* event) {
         this->event_queue.push(event);
     }
+
     void
     add_order(string id, double time, PackageCategory ctg, string src, string dst); // add station
+
     void add_station(string id, double throughput, double process_time) {
         this->stations[id] = Station { id, throughput, process_time };
     }
@@ -158,8 +162,9 @@ public:
         // check src and dst exist
         assert(this->stations.find(src) != this->stations.end());
         assert(this->stations.find(dst) != this->stations.end());
-        auto route = Route { src, dst, time, cost };
-        this->routes[src].push_back(route);
+        this->route_cnt += 1;
+        auto route = Route { this->route_cnt, src, dst, time, cost };
+        this->routes[src].emplace(this->route_cnt, route); // add key value
     }
     // arrive package
     void finish_order(string package, double time) {
@@ -211,50 +216,51 @@ private:
 
 struct V0StartProcess: public Event {
 public:
-    V0StartProcess(double t, Simulation& sim, string package, string src, string dst):
+    V0StartProcess(double t, Simulation& sim, string package, string src, int route):
         Event(t, sim),
         package(package),
         src(src),
-        dst(dst) {}
+        route(route) {}
 
     void process_event() override;
 
 private:
     string package;
     string src;
-    string dst;
+    int route;
 };
 
 // [可能是送原地，即完成配送]
 // EndProcess
 struct V1StartSend: public Event {
 public:
-    V1StartSend(double t, Simulation& sim, string package, string src, string dst):
+    V1StartSend(double t, Simulation& sim, string package, string src, int route):
         Event(t, sim),
         package(package),
         src(src),
-        dst(dst) {}
+        route(route) {}
 
     void process_event() override;
 
 private:
     string package;
     string src;
-    string dst;
+    int route;
 };
 
-// 使用堆优化 dijkstra 求解时间最短路，返回最短路所有站点的 string vector
-vector<string> dijkstra(
+// 使用堆优化 dijkstra 求解时间最短路，返回最短路整条路径 id vector
+// routes[x] is all routes of x
+// routes[x][rid] is route of x
+vector<int> dijkstra(
     const map<string, Station>& stations,
-    const map<string, vector<Route>>& routes,
+    const map<string, map<int, Route>>& routes,
     string src,
     string dst
 ) {
     map<string, double> dist;
-    map<string, string> prev;
+    map<string, pair<string, int>> prev; // nodes' prev station and route
     for (const auto& [id, station]: stations) {
         dist[id] = std::numeric_limits<double>::max();
-        prev[id] = "";
     }
     dist[src] = 0;
     // priority_queue<pair<double, string>> q;
@@ -272,25 +278,32 @@ vector<string> dijkstra(
             continue;
         }
         // if not found, edges is empty
-        auto edges = routes.find(u) == routes.end() ? vector<Route> {} : routes.at(u);
+        auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
         for (const auto& route: edges) {
             // cout << "  route: " << route.src << " => " << route.dst << "\n";
-            string v = route.dst;
-            double w = route.time;
+            string v = route.second.dst;
+            double w = route.second.time;
             // cout << "  dist v: " << dist[v] << ", dist u: " << dist[u] << ", w: " << w << "\n";
             if (dist[u] + w < dist[v]) {
                 // cout << "    update dist: " << dist[u] + w << "\n";
                 dist[v] = dist[u] + w;
-                prev[v] = u;
+                prev[v] = { u, route.first };
                 // cout << "    prev: " << prev[v] << "\n";
                 q.push(make_pair(dist[v], v));
             }
         }
     }
+    // print prevs
 
-    vector<string> path;
-    for (string at = dst; at != ""; at = prev[at]) {
-        path.push_back(at);
+    vector<int> path;
+    // for (string at = dst; at != ""; at = prev[at]) {
+    //     path.push_back(at);
+    // }
+    for (string at = dst; at != src;) {
+        auto [from, route] = prev[at];
+        // logs("from: {}, route: {}", from, route);
+        path.push_back(route);
+        at = from;
     }
     std::reverse(path.begin(), path.end());
     return path;
@@ -302,27 +315,29 @@ TEST_CASE("dijkstra") {
         { "c", Station { "c", 1.0 / 4, 2 } }, { "d", Station { "d", 1.0 / 3, 2 } },
         { "e", Station { "e", 1.0 / 2, 2 } },
     };
-    map<string, vector<Route>> routes;
+    map<string, map<int, Route>> routes;
     routes["a"] = {
-        Route { "a", "b", 1, 1 },
-        Route { "a", "c", 2, 2 },
+        { 1, Route { 1, "a", "b", 1, 1 } },
+        { 7, Route { 7, "a", "b", 0.9, 1 } },
+        { 8, Route { 8, "a", "b", 2, 1 } },
+        { 2, Route { 2, "a", "c", 2, 2 } },
     };
     routes["b"] = {
-        Route { "b", "c", 3, 3 },
-        Route { "b", "d", 4, 4 },
+        { 3, Route { 3, "b", "c", 3, 3 } },
+        { 4, Route { 4, "b", "d", 4, 4 } },
     };
     routes["c"] = {
-        Route { "c", "d", 5, 5 },
+        { 5, Route { 5, "c", "d", 5, 5 } },
     };
     routes["d"] = {
-        Route { "d", "e", 6, 6 },
+        { 6, Route { 6, "d", "e", 6, 6 } },
     };
     auto path = dijkstra(stations, routes, "a", "e");
     // for (const auto& station: path) {
     //     cout << station << " ";
     // }
     // cout << '\n';
-    auto ans = vector<string> { "a", "b", "d", "e" };
+    auto ans = vector<int> { 7, 4, 6 };
     for (int i = 0; i < path.size(); i++) {
         CHECK(path[i] == ans[i]);
     }
@@ -372,12 +387,12 @@ public:
             return;
         }
         // [process success]
-        string earliest = *this->sim.stations[this->station].buffer.begin();
+        string earlist_package = *this->sim.stations[this->station].buffer.begin();
         for (const auto& package: this->sim.stations[this->station].buffer) {
             if (this->sim.packages[package].time_created
-                < this->sim.packages[earliest].time_created)
+                < this->sim.packages[earlist_package].time_created)
             {
-                earliest = package;
+                earlist_package = package;
             }
         }
         // use dijkstra
@@ -385,23 +400,23 @@ public:
             this->sim.stations,
             this->sim.routes,
             this->station,
-            this->sim.packages[earliest].dst
+            this->sim.packages[earlist_package].dst
         );
-        if (path.size() == 1) {
+        if (path.size() == 0) {
             // already at src
             logs(
                 "[{:.3f}] station {} is already at the src of {}, final process and SENT.",
                 this->time,
                 this->station,
                 this->station,
-                earliest
+                earlist_package
             );
-            assert(this->station == this->sim.packages[earliest].dst);
+            assert(this->station == this->sim.packages[earlist_package].dst);
             // this->sim.stations[this->station].buffer.erase(earliest);
             // this->sim.stations[this->station].processing_package = earliest;
             // 会修改 ok_time
             this->sim.stations[this->station].take_package_from_buffer_to_processing(
-                earliest,
+                earlist_package,
                 this->time
             );
             for (const auto& [id, station]: this->sim.stations) {
@@ -413,9 +428,9 @@ public:
                 // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
                 this->time + this->sim.stations[this->station].process_time,
                 this->sim,
-                earliest,
+                earlist_package,
                 this->station,
-                this->station
+                0
             ));
             this->sim.schedule_event(new V1TryProcessOne(
                 this->sim.stations[this->station].start_process_ok_time,
@@ -425,15 +440,14 @@ public:
             return;
         }
         logs(
-            "[{:.3f}] station {} process {} and send to {}.",
+            "[{:.3f}] station {} process {} and send to station {}.",
             this->time,
             this->station,
-            this->station,
-            earliest,
-            path[1]
+            earlist_package,
+            this->sim.routes[this->station][path[0]].dst
         );
         this->sim.stations[this->station].take_package_from_buffer_to_processing(
-            earliest,
+            earlist_package,
             this->time
         );
         number_package_in_station << this->time << "," << this->station << ","
@@ -441,9 +455,9 @@ public:
         this->sim.schedule_event(new V1StartSend(
             this->time + this->sim.stations[this->station].process_time,
             this->sim,
-            earliest,
+            earlist_package,
             this->station,
-            path[1]
+            path[0]
         ));
     }
 };
@@ -462,6 +476,9 @@ void Arrival::process_event() {
     }
     this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->station));
     // this->sim.schedule_event();
+    // [test]
+    // buffer size
+    logs("[{:.3f}] buffer size: {}", this->time, this->sim.stations[this->station].buffer.size());
 }
 
 void V0StartProcess::process_event() {
@@ -472,31 +489,39 @@ void V0StartProcess::process_event() {
         this->src,
         this->package,
         this->src,
-        this->dst
+        this->route
     );
     this->sim.schedule_event(new V1StartSend(
         this->time + this->sim.stations[this->src].process_time,
         this->sim,
         this->package,
         this->src,
-        this->dst
+        this->route
     ));
 }
 
 void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
-    logs("[{:.3f}] StartSend pack {}: {} => {}", this->time, this->package, this->src, this->dst);
+    logs(
+        "[{:.3f}] StartSend pack {}: {} => {}, time",
+        this->time,
+        this->package,
+        this->src,
+        this->sim.routes[this->src][this->route].id,
+        this->sim.routes[this->src][this->route].time
+    );
     if (this->sim.packages[this->package].dst == this->src) {
         // package has arrived
         this->sim.finish_order(this->package, this->time);
         return;
     }
     this->sim.schedule_event(new Arrival(
-        this->time + this->sim.routes[this->src][0].time,
+        // find src => dst route
+        this->time + this->sim.routes[this->src][this->route].time,
         this->sim,
         this->package,
-        this->dst
+        this->sim.routes[this->src][this->route].dst
     ));
     // try process one right now (but after this StartSend guranteed by event push)
     // this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
@@ -511,11 +536,28 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
 
 TEST_CASE("simple") {
     Simulation sim;
+    sim.add_station("A", 5, 2);
+    sim.add_station("B", 20, 2);
+    sim.add_route("A", "B", 100, 10);
+    sim.add_route("A", "B", 50, 10);
+    sim.add_route("A", "B", 30, 10);
+    sim.add_route("A", "B", 200, 10);
+    sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
+    sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
+    sim.run();
+}
+
+TEST_CASE("buffer") {
+    Simulation sim;
     sim.add_station("a", 10, 4.5);
     sim.add_station("b", 20, 2);
     sim.add_route("a", "b", 100, 1200);
     sim.add_order("p1", 100, PackageCategory::STANDARD, "a", "b");
-    sim.add_order("p2", 100, PackageCategory::EXPRESS, "a", "b");
+    sim.add_order("p2", 100, PackageCategory::STANDARD, "a", "b");
+    sim.add_order("p3", 100, PackageCategory::STANDARD, "a", "b");
+    sim.add_order("p4", 100, PackageCategory::STANDARD, "a", "b");
+    sim.add_order("p5", 100, PackageCategory::STANDARD, "a", "b");
+    sim.add_order("p6", 100, PackageCategory::STANDARD, "a", "b");
     sim.run();
 }
 
