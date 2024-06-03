@@ -15,8 +15,8 @@ using std::map;
 using std::string;
 using namespace base;
 
-enum struct EvaluateStrategy {
-    V0,
+enum struct EvaluateVersion {
+    V0 = 0,
     V1,
     V2,
 };

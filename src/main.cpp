@@ -14,6 +14,7 @@
 #include "fmt/core.h"
 #include "log.hpp"
 #include "rust.hpp"
+#include "strategy.hpp"
 
 // using fmt::logs;
 using std::cout;
@@ -36,6 +37,9 @@ using base::Station;
 
 using eval::EvalFunc;
 using eval::EvalFuncV0;
+using eval::EvaluateVersion;
+
+using strategy::StrategyVersion;
 
 // [comptime]
 
@@ -72,6 +76,17 @@ struct EventComparator {
 //     return last_time;
 // }
 
+struct V2StationInfo {
+    string id;
+    bool try_process_dued;
+};
+
+const std::pair<EvaluateVersion, EvalFunc*> EVALUATE_FUNC_MAP[] = {
+    { EvaluateVersion::V0, new EvalFuncV0 },
+    // { EvaluateVersion::V1,
+    //   new EvalFuncV0 }
+};
+
 struct Simulation {
 private:
     double current_time; // current time
@@ -89,8 +104,24 @@ public:
     map<string, Package> packages;
 
     // map<string, map<string,
+public:
+    const StrategyVersion strategy_version = StrategyVersion::V1;
 
 public:
+    // strategy info
+    // any other ways?
+    // [todo] 修改 Evaluate 相关
+    map<string, V2StationInfo> v2_station_info;
+
+public:
+    const EvaluateVersion evaluate_version = EvaluateVersion::V0;
+
+public:
+    Simulation() = default;
+    Simulation(StrategyVersion strategy_version, EvaluateVersion evaluate_version):
+        strategy_version(strategy_version),
+        evaluate_version(evaluate_version) {}
+
     void run();
 
     void schedule_event(Event* event) {
@@ -129,8 +160,11 @@ public:
         this->packages[package].finished = true;
         this->packages[package].time_finished = time;
     }
-    double eval(EvalFunc&& eval_func) {
-        return eval_func(this->transport_cost, this->packages);
+    double eval() {
+        return (*(EVALUATE_FUNC_MAP[static_cast<int>(this->evaluate_version)].second))(
+            this->transport_cost,
+            this->packages
+        );
     }
 };
 
@@ -516,7 +550,7 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
 }
 
 TEST_CASE("simple") {
-    Simulation sim;
+    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
     sim.add_station("A", 5, 2);
     sim.add_station("B", 20, 2);
     sim.add_route("A", "B", 100, 50);
@@ -526,11 +560,11 @@ TEST_CASE("simple") {
     sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
     sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
     sim.run();
-    logs("cost: {}", sim.eval(EvalFuncV0()));
+    logs("cost: {}", sim.eval());
 }
 
 TEST_CASE("smart") {
-    Simulation sim;
+    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
     sim.add_station("A", 1e3, 0);
     sim.add_station("B", 1, 0);
     sim.add_station("C", 1, 0);
@@ -543,7 +577,7 @@ TEST_CASE("smart") {
         sim.add_order("p" + std::to_string(i), 0, PackageCategory::STANDARD, "A", "D");
     }
     sim.run();
-    logs("cost: {}", sim.eval(EvalFuncV0()));
+    logs("cost: {}", sim.eval());
 }
 
 TEST_CASE("buffer") {
