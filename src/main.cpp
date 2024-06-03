@@ -77,8 +77,19 @@ TEST_CASE("simple-v1b") {
 }
 
 TEST_CASE("smart-pk") {
-    for (int i = 1; i <= 2; i++) {
-        Simulation sim { i == 1 ? StrategyVersion::V1 : StrategyVersion::V2, EvaluateVersion::V0 };
+    for (int i = 1; i <= 4; i++) {
+        Simulation sim { [&i]() {
+                            if (i == 1) {
+                                return StrategyVersion::V1;
+                            } else if (i == 2) {
+                                return StrategyVersion::V1B;
+                            } else if (i == 3) {
+                                return StrategyVersion::V2;
+                            } else {
+                                return StrategyVersion::V2B;
+                            }
+                        }(),
+                         EvaluateVersion::V0 };
         sim.add_station("A", 1e3, 0, 0);
         sim.add_station("B", 1, 0, 0);
         sim.add_station("C", 1, 0, 0);
@@ -88,7 +99,13 @@ TEST_CASE("smart-pk") {
         sim.add_route("B", "D", 1, 1);
         sim.add_route("C", "D", 1.01, 1);
         for (int i = 1; i <= 100; i++) {
-            sim.add_order("p" + std::to_string(i), 0.001 * i, PackageCategory::STANDARD, "A", "D");
+            sim.add_order(
+                "p" + std::to_string(i),
+                0.001 * i,
+                i <= 50 ? PackageCategory::STANDARD : PackageCategory::EXPRESS,
+                "A",
+                "D"
+            );
         }
         sim.run();
         log::ecargo("Tag", "cost: {}", sim.eval());

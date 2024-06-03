@@ -107,7 +107,9 @@ public:
         this->stations[id] = Station { id, throughput, process_delay, cost };
         this->routes.emplace(id, map<int, Route>());
 
-        if (this->strategy_version == StrategyVersion::V2) {
+        if (this->strategy_version == StrategyVersion::V2
+            || this->strategy_version == StrategyVersion::V2B)
+        {
             this->v2_cache.station_plans.emplace(id, strategy::v2::StationPlan(id, *this));
         }
     }

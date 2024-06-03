@@ -1,6 +1,9 @@
 #include "strategy/v2.hpp"
 
+#include "base.hpp"
+#include "log.hpp"
 #include "sim.hpp"
+#include "strategy.hpp"
 
 namespace strategy::v2 {
 
@@ -40,8 +43,6 @@ vector<int> fake_dijkstra(
         auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
         for (const auto& route: edges) {
             string v = route.second.dst;
-
-            // logs_cargo("Info", "{} {}", u, v);
             const double estimated_wait_time = station_plans.at(v).estimated_wait_time(
                 start_send_time_at_min_cost.at(u),
                 start_send_time_at_min_cost.at(u) + route.second.time
@@ -170,21 +171,48 @@ void V2TryProcessOne::process_event() {
         return;
     }
     // [process success]
-    string earlist_package = *this->sim.stations.at(this->station).buffer.begin();
-    for (const auto& package: this->sim.stations.at(this->station).buffer) {
-        if (this->sim.packages[package].time_created
-            < this->sim.packages[earlist_package].time_created)
-        {
-            earlist_package = package;
+    string vip_package = *this->sim.stations.at(this->station).buffer.begin();
+    if (this->sim.strategy_version == StrategyVersion::V2) {
+        for (const auto& package: this->sim.stations.at(this->station).buffer) {
+            if (this->sim.packages[package].time_created
+                < this->sim.packages[vip_package].time_created)
+            {
+                vip_package = package;
+            }
+        }
+    } else { // V2B
+        for (const auto& package: this->sim.stations.at(this->station).buffer) {
+            // if (this->sim.packages[package].time_created
+            //     < this->sim.packages[earlist_package].time_created)
+            // {
+            //     earlist_package = package;
+            // }
+            // EXPRESS first
+            const bool vip_is_express =
+                this->sim.packages[vip_package].category == PackageCategory::EXPRESS;
+            const bool package_is_express =
+                this->sim.packages[package].category == PackageCategory::EXPRESS;
+            if (vip_is_express != package_is_express) {
+                if (package_is_express) {
+                    vip_package = package;
+                }
+                continue;
+            }
+            if (this->sim.packages[package].time_created
+                < this->sim.packages[vip_package].time_created)
+            {
+                vip_package = package;
+            }
         }
     }
+
     // use dijkstra
     auto path = [&]() {
         return fake_dijkstra(
             this->sim.stations,
             this->sim.routes,
             this->station,
-            this->sim.packages[earlist_package].dst,
+            this->sim.packages[vip_package].dst,
             this->time,
             this->sim.v2_cache.station_plans
         );
@@ -196,14 +224,14 @@ void V2TryProcessOne::process_event() {
             this->time,
             this->station,
             this->station,
-            earlist_package
+            vip_package
         );
-        assert(this->station == this->sim.packages[earlist_package].dst);
+        assert(this->station == this->sim.packages[vip_package].dst);
         // this->sim.stations[this->station].buffer.erase(earliest);
         // this->sim.stations[this->station].processing_package = earliest;
         // 会修改 ok_time
         this->sim.stations.at(this->station)
-            .take_package_from_buffer_to_processing(earlist_package, this->time);
+            .take_package_from_buffer_to_processing(vip_package, this->time);
         for (const auto& [id, station]: this->sim.stations) {
             number_package_in_station << this->time << "," << id << ","
                                       << this->sim.stations.at(id).buffer.size() << "\n";
@@ -218,7 +246,7 @@ void V2TryProcessOne::process_event() {
             // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
             this->time + this->sim.stations.at(this->station).process_delay,
             this->sim,
-            earlist_package,
+            vip_package,
             this->station,
             -1
         ));
@@ -227,7 +255,7 @@ void V2TryProcessOne::process_event() {
             this->sim,
             this->station
         ));
-        package_trip << this->time << "," << earlist_package << "," << this->station << ","
+        package_trip << this->time << "," << vip_package << "," << this->station << ","
                      << this->station << "\n";
         return;
     }
@@ -236,11 +264,11 @@ void V2TryProcessOne::process_event() {
         this->time,
         this->station,
         this->station,
-        earlist_package,
+        vip_package,
         this->sim.routes.at(this->station).at(path[0]).dst
     );
     this->sim.stations.at(this->station)
-        .take_package_from_buffer_to_processing(earlist_package, this->time);
+        .take_package_from_buffer_to_processing(vip_package, this->time);
     for (const auto& [id, station]: this->sim.stations) {
         number_package_in_station << this->time << "," << id << ","
                                   << this->sim.stations.at(id).buffer.size() << "\n";
@@ -252,16 +280,16 @@ void V2TryProcessOne::process_event() {
     this->sim.schedule_event(new V2StartSend(
         this->time + this->sim.stations.at(this->station).process_delay,
         this->sim,
-        earlist_package,
+        vip_package,
         this->station,
         path[0]
     ));
     this->sim.v2_cache.station_plans.at(dst).add_due_pkg(
         this->time + this->sim.stations.at(this->station).process_delay
             + this->sim.routes.at(this->station).at(path[0]).time,
-        earlist_package
+        vip_package
     );
-    package_trip << this->time << "," << earlist_package << "," << this->station << ","
+    package_trip << this->time << "," << vip_package << "," << this->station << ","
                  << this->sim.routes.at(this->station).at(path[0]).dst << "\n";
 }
 

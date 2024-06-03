@@ -38,7 +38,9 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
         || this->strategy_version == StrategyVersion::V1B)
     {
         this->schedule_event(new V1Arrival(time, *this, id, src));
-    } else if (this->strategy_version == StrategyVersion::V2) {
+    } else if (this->strategy_version == StrategyVersion::V2
+               || this->strategy_version == StrategyVersion::V2B)
+    {
         this->schedule_event(new strategy::v2::V2Arrival(time, *this, id, src, true));
     }
 }

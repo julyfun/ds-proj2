@@ -24,6 +24,7 @@ enum struct StrategyVersion {
     V1A,
     V1B,
     V2,
+    V2B,
 };
 
 // 使用堆优化 dijkstra 求解时间最短路，返回最短路整条路径 id vector
