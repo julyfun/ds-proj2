@@ -1,3 +1,6 @@
+#ifndef LOG_HPP
+#define LOG_HPP
+
 #include <filesystem>
 #include <fmt/core.h>
 #include <string>
@@ -17,3 +20,5 @@ void logs(const std::string_view& str, T&&... args) {
     // fclose(file); // Better use RAII instead.
 }
 } // namespace log
+
+#endif
