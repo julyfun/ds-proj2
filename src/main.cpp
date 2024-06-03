@@ -74,7 +74,7 @@ struct Station {
 public:
     string id;
     double throughput;
-    double process_time;
+    double process_delay;
 
     set<string> buffer;
     // 下一个可以开始处理的时间
@@ -227,9 +227,9 @@ void Simulation::run() {
     }
 }
 
-struct Arrival: public Event {
+struct V1Arrival: public Event {
 public:
-    Arrival(double t, Simulation& sim, string package, string dst):
+    V1Arrival(double t, Simulation& sim, string package, string dst):
         Event(t, sim),
         package(package),
         station(dst) {}
@@ -461,7 +461,7 @@ public:
             this->sim.schedule_event(new V1StartSend(
                 // [todo]
                 // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
-                this->time + this->sim.stations[this->station].process_time,
+                this->time + this->sim.stations[this->station].process_delay,
                 this->sim,
                 earlist_package,
                 this->station,
@@ -493,7 +493,7 @@ public:
         // choose path[0]
         this->sim.add_transport_cost(this->sim.routes[this->station][path[0]].cost);
         this->sim.schedule_event(new V1StartSend(
-            this->time + this->sim.stations[this->station].process_time,
+            this->time + this->sim.stations[this->station].process_delay,
             this->sim,
             earlist_package,
             this->station,
@@ -504,7 +504,7 @@ public:
     }
 };
 
-void Arrival::process_event() {
+void V1Arrival::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
@@ -544,7 +544,7 @@ void V0StartProcess::process_event() {
         this->sim.routes[this->src][this->route].dst
     );
     this->sim.schedule_event(new V1StartSend(
-        this->time + this->sim.stations[this->src].process_time,
+        this->time + this->sim.stations[this->src].process_delay,
         this->sim,
         this->package,
         this->src,
@@ -571,7 +571,7 @@ void V1StartSend::process_event() {
         this->sim.finish_order(this->package, this->time);
         return;
     }
-    this->sim.schedule_event(new Arrival(
+    this->sim.schedule_event(new V1Arrival(
         // find src => dst route
         this->time + this->sim.routes[this->src][this->route].time,
         this->sim,
@@ -587,7 +587,7 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
     // string id = std::to_string(this->id_cnt);
     this->packages[id] = Package { id, ctg, time, src, dst };
     this->package_dynamic_info[id] = PackageDynamicInfo { id, false, 0.0 };
-    this->schedule_event(new Arrival(time, *this, id, src));
+    this->schedule_event(new V1Arrival(time, *this, id, src));
 }
 
 TEST_CASE("simple") {
