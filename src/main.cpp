@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base.hpp"
 #include "fmt/core.h"
 #include "log.hpp"
 #include "rust.hpp"
@@ -26,6 +27,12 @@ using std::string;
 using std::vector;
 
 using log::logs;
+
+using base::Package;
+using base::PackageCategory;
+using base::PackageDynamicInfo;
+using base::Route;
+using base::Station;
 
 // [comptime]
 
@@ -49,14 +56,6 @@ struct EventComparator {
     }
 };
 
-struct Route {
-    int id;
-    string src;
-    string dst;
-    double time;
-    double cost;
-};
-
 // double get_last_arrival_time(const DataBase& db, string package) {
 //     if (db.trips.find(package) == db.trips.end()) {
 //         return 0;
@@ -70,49 +69,10 @@ struct Route {
 //     return last_time;
 // }
 
-// minimal
-struct Station {
-public:
-    string id;
-    double throughput;
-    double process_delay;
-
-    set<string> buffer;
-    // 下一个可以开始处理的时间
-    double start_process_ok_time = std::numeric_limits<double>::min();
-    // optional<string> processing_package;
-
-public:
-    void take_package_from_buffer_to_processing(string package, double time) {
-        this->buffer.erase(package);
-        this->start_process_ok_time = time + 1.0 / this->throughput;
-        // this->processing_package = package;
-    }
-};
-
-enum struct PackageCategory {
-    STANDARD,
-    EXPRESS,
-};
-
-struct Package {
-    string id;
-    PackageCategory category;
-    double time_created;
-    string src;
-    string dst;
-};
-
 enum struct EvaluateStrategy {
     V0,
     V1,
     V2,
-};
-
-struct PackageDynamicInfo {
-    string id;
-    bool finished;
-    double time_finished;
 };
 
 struct EvalFunc {
