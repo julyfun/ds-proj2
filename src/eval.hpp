@@ -50,5 +50,11 @@ struct EvalFuncV0: public EvalFunc {
     }
 };
 
+const std::pair<EvaluateVersion, EvalFunc*> EVALUATE_FUNC_MAP[] = {
+    { EvaluateVersion::V0, new EvalFuncV0 },
+    // { EvaluateVersion::V1,
+    //   new EvalFuncV0 }
+};
+
 } // namespace eval
 #endif
