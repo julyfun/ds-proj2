@@ -2,6 +2,7 @@
 #include "doctest/doctest.h"
 
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <queue>
@@ -29,6 +30,7 @@ using std::string;
 using std::vector;
 
 using log::logs;
+using log::logs_cargo;
 
 using base::Package;
 using base::PackageCategory;
@@ -74,7 +76,6 @@ struct EventComparator {
 //         }
 //     }
 //     return last_time;
-// }
 
 struct V2StationInfo {
     string id;
@@ -226,11 +227,8 @@ public:
 };
 
 void Simulation::run() {
-    std::ofstream number_package_in_station("number_package_in_station.csv");
-    number_package_in_station.clear();
-    std::ofstream package_trip("package_trip.csv");
-    package_trip.clear();
-
+    // chrono
+    auto start_time = std::chrono::high_resolution_clock::now();
     while (!this->event_queue.empty()) {
         Event* event = this->event_queue.top();
         this->event_queue.pop();
@@ -243,6 +241,12 @@ void Simulation::run() {
         logs("arrived: {}, money cost: {}", this->arrived, this->transport_cost);
         delete event;
     }
+    auto spent_run_time = std::chrono::high_resolution_clock::now() - start_time;
+    logs_cargo(
+        "Run",
+        "{}ms spent for simulation",
+        std::chrono::duration<double, std::milli>(spent_run_time).count()
+    );
 }
 
 struct V1Arrival: public Event {
@@ -482,7 +486,7 @@ public:
                 this->sim,
                 earlist_package,
                 this->station,
-                0
+                -1
             ));
             this->sim.schedule_event(new V1TryProcessOne(
                 this->sim.stations[this->station].start_process_ok_time,
@@ -576,26 +580,35 @@ void V0StartProcess::process_event() {
 void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
-    logs(
-        "[{:.3f}] {}] StartSend pack {}: {} => {}, time",
-        this->time,
-        this->src,
-        this->package,
-        this->src,
-        this->sim.routes[this->src][this->route].dst,
-        this->sim.routes[this->src][this->route].time
-    );
     if (this->sim.packages[this->package].dst == this->src) {
+        logs(
+            "[{:.3f}] {}] StartSend pack {}: {} => {}, time {}",
+            this->time,
+            this->src,
+            this->package,
+            this->src,
+            this->src,
+            0
+        );
         // package has arrived
         this->sim.finish_order(this->package, this->time);
         return;
     }
+    logs(
+        "[{:.3f}] {}] StartSend pack {}: {} => {}, time {}",
+        this->time,
+        this->src,
+        this->package,
+        this->src,
+        this->sim.routes.at(this->src).at(this->route).dst,
+        this->sim.routes.at(this->src).at(this->route).time
+    );
     this->sim.schedule_event(new V1Arrival(
         // find src => dst route
         this->time + this->sim.routes[this->src][this->route].time,
         this->sim,
         this->package,
-        this->sim.routes[this->src][this->route].dst
+        this->sim.routes.at(this->src).at(this->route).dst
     ));
     // try process one right now (but after this StartSend guranteed by event push)
     // this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
@@ -632,7 +645,7 @@ TEST_CASE("smart") {
     sim.add_route("A", "C", 1, 100);
     sim.add_route("B", "D", 1, 100);
     sim.add_route("C", "D", 2, 100);
-    for (int i = 1; i <= 100; i++) {
+    for (int i = 1; i <= 200; i++) {
         sim.add_order("p" + std::to_string(i), 0, PackageCategory::STANDARD, "A", "D");
     }
     sim.run();
