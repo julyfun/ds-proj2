@@ -20,6 +20,7 @@ enum struct StrategyVersion {
     V0 = 0,
     V1,
     V1A,
+    V1B,
     V2,
 };
 
@@ -87,6 +88,71 @@ inline vector<int> dijkstra(
     return path;
 }
 
-} // namespace strategy
+inline vector<int> dijkstra_enhanced(
+    const map<string, Station>& stations,
+    const map<string, map<int, Route>>& routes,
+    string src,
+    string dst
+) {
+    map<string, double> dist;
+    map<string, pair<string, int>> prev; // nodes' prev station and route
+    for (const auto& [id, station]: stations) {
+        dist[id] = std::numeric_limits<double>::max();
+    }
+    dist[src] = 0;
+    // priority_queue<pair<double, string>> q;
+    priority_queue<
+        pair<double, string>,
+        vector<pair<double, string>>,
+        greater<pair<double, string>>>
+        q;
 
+    q.push(make_pair(0, src));
+    while (!q.empty()) {
+        auto [d, u] = q.top();
+        q.pop();
+        if (d > dist[u]) {
+            continue;
+        }
+        // if not found, edges is empty
+        auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
+        for (const auto& route: edges) {
+            string v = route.second.dst;
+            double w =
+                route.second.time * 7.5 + route.second.cost + stations.at(route.second.dst).cost;
+
+            bool station_full = false;
+
+            if (stations.find(v) != stations.end()
+                && stations.at(v).buffer.size() > stations.at(v).throughput && v != dst)
+            {
+                station_full = true;
+            }
+
+            if (dist[u] + w < dist[v] && !station_full) {
+                // cout << "    update dist: " << dist[u] + w << "\n";
+                dist[v] = dist[u] + w;
+                prev[v] = { u, route.first };
+                // cout << "    prev: " << prev[v] << "\n";
+                q.push(make_pair(dist[v], v));
+            }
+        }
+    }
+    // print prevs
+
+    vector<int> path;
+    // for (string at = dst; at != ""; at = prev[at]) {
+    //     path.push_back(at);
+    // }
+    for (string at = dst; at != src;) {
+        auto [from, route] = prev[at];
+        // logs("from: {}, route: {}", from, route);
+        path.push_back(route);
+        at = from;
+    }
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
+} // namespace strategy
 #endif

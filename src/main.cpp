@@ -42,6 +42,7 @@ using eval::EvalFuncV0;
 using eval::EvaluateVersion;
 
 using strategy::dijkstra;
+using strategy::dijkstra_enhanced;
 using strategy::StrategyVersion;
 
 // [comptime]
@@ -359,12 +360,22 @@ public:
             }
         }
         // use dijkstra
-        auto path = dijkstra_enhanced(
-            this->sim.stations,
-            this->sim.routes,
-            this->station,
-            this->sim.packages[earlist_package].dst
-        );
+        auto path = [&]() {
+            if (this->sim.strategy_version == StrategyVersion::V1B) {
+                return dijkstra_enhanced(
+                    this->sim.stations,
+                    this->sim.routes,
+                    this->station,
+                    this->sim.packages[earlist_package].dst
+                );
+            }
+            return dijkstra(
+                this->sim.stations,
+                this->sim.routes,
+                this->station,
+                this->sim.packages[earlist_package].dst
+            );
+        }();
         if (path.size() == 0) {
             // already at src
             logs(
@@ -529,6 +540,20 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
 
 TEST_CASE("simple") {
     Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
+    sim.add_station("A", 5, 2, 100);
+    sim.add_station("B", 20, 2, 100);
+    sim.add_route("A", "B", 100, 50);
+    sim.add_route("A", "B", 50, 10);
+    sim.add_route("A", "B", 30, 66);
+    sim.add_route("A", "B", 200, 10);
+    sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
+    sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
+    sim.run();
+    logs("cost: {}", sim.eval());
+}
+
+TEST_CASE("simple-v1b") {
+    Simulation sim { StrategyVersion::V1B, EvaluateVersion::V0 };
     sim.add_station("A", 5, 2, 100);
     sim.add_station("B", 20, 2, 100);
     sim.add_route("A", "B", 100, 50);
