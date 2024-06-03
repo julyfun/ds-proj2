@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base.hpp"
+#include "eval.hpp"
 #include "fmt/core.h"
 #include "log.hpp"
 #include "rust.hpp"
@@ -33,6 +34,9 @@ using base::PackageCategory;
 using base::PackageDynamicInfo;
 using base::Route;
 using base::Station;
+
+using eval::EvalFunc;
+using eval::EvalFuncV0;
 
 // [comptime]
 
@@ -68,42 +72,6 @@ struct EventComparator {
 //     }
 //     return last_time;
 // }
-
-enum struct EvaluateStrategy {
-    V0,
-    V1,
-    V2,
-};
-
-struct EvalFunc {
-    virtual double operator()(
-        double transport_cost,
-        const map<string, Package>& pkg,
-        const map<string, PackageDynamicInfo>& dyn
-    ) = 0;
-};
-
-struct EvalFuncV0: public EvalFunc {
-    double operator()(
-        double transport_cost,
-        const map<string, Package>& pkgs,
-        const map<string, PackageDynamicInfo>& dyn
-    ) override {
-        double tot_cost = transport_cost;
-        for (const auto& [id, pkg]: pkgs) {
-            if (!dyn.at(id).finished) {
-                tot_cost += 1e6;
-                logs("package {} not finished", id);
-                continue;
-            }
-            double time_cost = dyn.at(id).time_finished - pkg.time_created;
-            double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 10 : 5);
-            logs("package {} finished at {}, cost {}", id, dyn.at(id).time_finished, cost);
-            tot_cost += cost;
-        }
-        return tot_cost;
-    }
-};
 
 struct Simulation {
 private:

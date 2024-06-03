@@ -1,0 +1,53 @@
+#ifndef EVAL_HPP
+#define EVAL_HPP
+
+#include <map>
+#include <string>
+
+#include "base.hpp"
+#include "log.hpp"
+
+namespace eval {
+using log::logs;
+using std::map;
+using std::string;
+using namespace base;
+
+enum struct EvaluateStrategy {
+    V0,
+    V1,
+    V2,
+};
+
+struct EvalFunc {
+    virtual double operator()(
+        double transport_cost,
+        const map<string, Package>& pkg,
+        const map<string, PackageDynamicInfo>& dyn
+    ) = 0;
+};
+
+struct EvalFuncV0: public EvalFunc {
+    double operator()(
+        double transport_cost,
+        const map<string, Package>& pkgs,
+        const map<string, PackageDynamicInfo>& dyn
+    ) override {
+        double tot_cost = transport_cost;
+        for (const auto& [id, pkg]: pkgs) {
+            if (!dyn.at(id).finished) {
+                tot_cost += 1e6;
+                logs("package {} not finished", id);
+                continue;
+            }
+            double time_cost = dyn.at(id).time_finished - pkg.time_created;
+            double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 10 : 5);
+            logs("package {} finished at {}, cost {}", id, dyn.at(id).time_finished, cost);
+            tot_cost += cost;
+        }
+        return tot_cost;
+    }
+};
+
+} // namespace eval
+#endif
