@@ -157,7 +157,6 @@ private:
     map<string, PackageDynamicInfo> package_dynamic_info;
 
 public:
-    DataBase db;
     map<string, Station> stations;
     map<string, map<int, Route>> routes;
     map<string, Package> packages;
