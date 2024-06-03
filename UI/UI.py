@@ -24,14 +24,14 @@ times = event_list['time']
 num_pack_in_station = pd.read_csv("./build/number_package_in_station.csv", sep=',', header=None, names=["time", "station", "num_pack_in_buffer"])
 
 position = pd.read_csv("positions.csv", sep=',', header=None, names=["station", "position_x", "position_y"])
-
 pos_and_num = pd.merge(position, num_pack_in_station, on="station")
 
 routes = pd.read_csv("routes.csv", sep=',', header=None, names=["src", "dst", "time_cost"])
 
 package_trip = pd.read_csv("./build/package_trip.csv", sep=',', header=None, names=["time", "package_id", "src", "dst"])
-
 package_trip_new = pd.merge(package_trip, routes, on=["src", "dst"])
+
+package_ctg = pd.read_csv("package_ctg.csv", sep=',', header=None, names=["package_id", "category"])
 
 # Layout
 app.layout = html.Div([
@@ -208,8 +208,6 @@ def update_animation(n, click):
     if not update_graph:
         return no_update
     
-    time_now = n 
-
     lastest_data = package_trip_new[package_trip_new['time'].astype(float) <= n]
     lastest_data = lastest_data.tail(10)
 
@@ -217,10 +215,11 @@ def update_animation(n, click):
     s = go.Scatter(x=pos_and_num['position_x'], 
                    y=pos_and_num['position_y'], 
                    marker=dict(color='blue', 
-                               size=1),
+                               size=10),
                    hovertext=pos_and_num['station'],
                    mode='markers',
-                   showlegend=False)
+                   showlegend=False,
+                   opacity=0.5)
     fig.add_trace(s)
 
     for index, trip in lastest_data.iterrows():
@@ -228,22 +227,25 @@ def update_animation(n, click):
         src_y = position.loc[position['station']==trip['src']]['position_y'].values[0]
         dst_x = position.loc[position['station']==trip['dst']]['position_x'].values[0]
         dst_y = position.loc[position['station']==trip['dst']]['position_y'].values[0]
+        ctg = package_ctg.loc[package_ctg['package_id']==trip['package_id']]['category'].values[0]
         if trip['src']==trip['dst']:   
             package = go.Scatter(x=[src_x], 
                                  y=[src_y], 
                                  mode='markers+text',
-                                 marker=dict(color='red', size=10),
-                                 text=trip['package_id'][:8],
+                                 marker=dict(color='red' if ctg==1 else 'green', 
+                                             size=10),
+                                 text=trip['package_id'][:4],
                                  name=trip['package_id'],
                                  showlegend=False)
         else:
-            package_x=(dst_x-src_x)*((n-float(trip['time']))/float(trip['time_cost']))+src_x
-            package_y=(dst_y-src_y)*((n-float(trip['time']))/float(trip['time_cost']))+src_y
+            package_x=(dst_x-src_x)*min(((n-float(trip['time']))/float(trip['time_cost'])),1)+src_x
+            package_y=(dst_y-src_y)*min(((n-float(trip['time']))/float(trip['time_cost'])),1)+src_y
             package = go.Scatter(x=[package_x],
                                 y=[package_y],
                                 mode='markers+text',
-                                marker=dict(color='red', size=10),
-                                text=trip['package_id'][:8],
+                                marker=dict(color='red' if ctg==1 else 'green', 
+                                            size=10),
+                                text=trip['package_id'][:4],
                                 name=trip['package_id'],
                                 showlegend=False)
             fig.add_trace(package)
@@ -278,8 +280,8 @@ def update_animation(n, click):
             opacity=0.2,
         )) 
 
-    fig.update_traces(marker=dict(size=10))
-    fig.update_layout(transition_duration=200,
+    fig.update_traces(marker=dict(size=5))
+    fig.update_layout(
                     width=1000,
                     height=800) 
 

@@ -133,7 +133,8 @@ def data_gen():
         category_name = ["PackageCategory::STANDARD", "PackageCategory::EXPRESS"]
         # Create time of the package, during 12 time ticks(hours). Of course you can change it.
         create_time = np.random.random() * 12
-        packets.append((create_time, category, f"s{src}", f"s{dst}"))
+        id = uuid.uuid4()
+        packets.append((id, create_time, category, f"s{src}", f"s{dst}"))
     # Sort packets by create time
     packets.sort(key=lambda x: x[0])    # Sort by create time from small to large
     # Output Packets
@@ -175,11 +176,11 @@ if __name__ == '__main__':
         
         f.write("packets:"+"\n")
         for i, packet in enumerate(data["packets"]):
-            f.write(str(uuid.uuid4())+" , "+
-                    str(packet[0])+" , "+
+            f.write(str(packet[0])+" , "+
                     str(packet[1])+" , "+
                     str(packet[2])+" , "+
-                    str(packet[3])+"\n") 
+                    str(packet[3])+" , "+
+                    str(packet[4])+"\n") 
     
     with open("positions.csv", "w") as f:
         for i, station in enumerate(data["station_id"]):
@@ -196,3 +197,8 @@ if __name__ == '__main__':
             f.write(edge[0]+','+
                     edge[1]+','+
                     str(edge[2])+'\n')
+    
+    with open("package_ctg.csv", "w") as f:
+        for i, packet in enumerate(data["packets"]):
+            f.write(str(packet[0])+','+
+                    str(packet[2])+'\n')
