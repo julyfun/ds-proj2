@@ -166,6 +166,66 @@ public:
             this->packages
         );
     }
+
+    void read_data(const string& path) {
+        std::ifstream file(path, std::ios::in);
+        if (file.is_open()) {
+            string line;
+            bool is_stations_section = false;
+            bool is_routes_section = false;
+            bool is_orders_section = false;
+            while (std::getline(file, line)) {
+                if (line == "stations:") {
+                    is_stations_section = true;
+                    is_routes_section = false;
+                    is_orders_section = false;
+                } else if (line == "edges:") {
+                    is_stations_section = false;
+                    is_routes_section = true;
+                    is_orders_section = false;
+                } else if (line == "packets:") {
+                    is_stations_section = false;
+                    is_routes_section = false;
+                    is_orders_section = true;
+                } else if (is_stations_section) {
+                    std::stringstream ss(line);
+                    string id;
+                    double throughput, time_process, cost;
+                    char p_l; // parenthesis left
+                    char c; // comma
+                    char p_r; // parenthesis right
+
+                    ss >> id >> c >> p_l >> throughput >> c >> time_process >> c >> cost >> p_r;
+                    this->add_station(id, throughput, time_process);
+                } else if (is_routes_section) {
+                    std::stringstream ss(line);
+                    string src;
+                    string dst;
+                    double time_cost, money_cost;
+                    char c;
+
+                    ss >> src >> c >> dst >> c >> time_cost >> c >> money_cost;
+                    this->add_route(src, dst, time_cost, money_cost);
+                } else if (is_orders_section) {
+                    std::stringstream ss(line);
+                    double time;
+                    int ctg;
+                    string src;
+                    string dst;
+                    string id;
+                    char c;
+
+                    ss >> id >> c >> time >> c >> ctg >> c >> src >> c >> dst;
+                    if (ctg == 0)
+                        this->add_order(id, time, PackageCategory::STANDARD, src, dst);
+                    else
+                        this->add_order(id, time, PackageCategory::EXPRESS, src, dst);
+                }
+            }
+        } else {
+            std::cout << "File not found" << std::endl;
+        }
+    }
 };
 
 void Simulation::run() {
@@ -597,74 +657,7 @@ TEST_CASE("buffer") {
 TEST_CASE("main") {
     cout << "Begin\n";
     Simulation sim;
-
-    std::ifstream file("../data.txt", std::ios::in);
-    if (file.is_open()) {
-        string line;
-        bool is_stations_section = false;
-        bool is_routes_section = false;
-        bool is_orders_section = false;
-        while (std::getline(file, line)) {
-            if (line == "stations:") {
-                is_stations_section = true;
-                is_routes_section = false;
-                is_orders_section = false;
-            } else if (line == "edges:") {
-                is_stations_section = false;
-                is_routes_section = true;
-                is_orders_section = false;
-            } else if (line == "packets:") {
-                is_stations_section = false;
-                is_routes_section = false;
-                is_orders_section = true;
-            } else if (is_stations_section) {
-                std::stringstream ss(line);
-                string id;
-                double throughput, time_process, cost;
-                char p_l; // parenthesis left
-                char c; // comma
-                char p_r; // parenthesis right
-
-                ss >> id >> c >> p_l >> throughput >> c >> time_process >> c >> cost >> p_r;
-                // cout << "id: " << id << " throughput: " << throughput
-                //  << " time process:" << time_process << std::endl;
-                sim.add_station(id, throughput, time_process);
-
-            } else if (is_routes_section) {
-                std::stringstream ss(line);
-                string src;
-                string dst;
-                double time_cost, money_cost;
-                char c;
-
-                ss >> src >> c >> dst >> c >> time_cost >> c >> money_cost;
-
-                // cout << "src: " << src << " dst: " << dst << " time cost: " << time_cost
-                //      << " money_cost: " << money_cost << std::endl;
-                sim.add_route(src, dst, time_cost, money_cost);
-            } else if (is_orders_section) {
-                std::stringstream ss(line);
-                double time;
-                int ctg;
-                string src;
-                string dst;
-                string id;
-                char c;
-
-                ss >> id >> c >> time >> c >> ctg >> c >> src >> c >> dst;
-
-                // cout << "time: " << time << " ctg: " << ctg << " src: " << src << " dst: " << dst
-                //      << std::endl;
-                if (ctg == 0)
-                    sim.add_order(id, time, PackageCategory::STANDARD, src, dst);
-                else
-                    sim.add_order(id, time, PackageCategory::EXPRESS, src, dst);
-            }
-        }
-    } else {
-        std::cout << "File not found" << std::endl;
-    }
-
+    sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
     cout << "End\n";
