@@ -12,15 +12,16 @@ import os
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
-
 # data process
 event_list = pd.read_csv("./build/output.txt", skiprows=3, sep=']', header=None, names=["time", "station", "event"])
 event_list = event_list[event_list['time'].str.startswith('[')].iloc[:-3]
 event_list['time'] = event_list['time'].apply(lambda x: x.lstrip('['))
-print(event_list)
-
-station = event_list['station']
-times = event_list['time']
+# time_of_selected_station = pd.DataFrame(columns=['time'])
+# for index, row in event_list.iterrows():
+#     if row['station'].strip() == 's0':
+#         time_of_selected_station.loc[len(time_of_selected_station)] = row['time']
+# time_options = [{'label': i, 'value': i} for i in time_of_selected_station['time'].unique()]
+# print(time_options)
 
 num_pack_in_station = pd.read_csv("./build/number_package_in_station.csv", sep=',', header=None, names=["time", "station", "num_pack_in_buffer"])
 
@@ -210,7 +211,7 @@ def update_animation(n, click):
         return no_update
     
     lastest_data = package_trip_new[package_trip_new['time'].astype(float) <= n]
-    lastest_data = lastest_data.tail(10)
+    lastest_data = lastest_data.tail(5)
 
     fig = go.Figure()
     s = go.Scatter(x=pos_and_num['position_x'], 
@@ -301,5 +302,5 @@ def update_check_package(selected_package_id):
     return f"You selected Package {selected_package_id}, the trip is: \n{''.join(trips)}"
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8050)
+    app.run_server(debug=True, port=8070)
 
