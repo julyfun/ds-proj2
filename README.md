@@ -15,6 +15,10 @@ make
 - 测试简单路径（见 main.cpp 中的 `TEST("simple")`）： `./run --dt-test-case=simple -s`
 - 测试 dijkstra 函数是否正常运作： `./run --dt-test-case=dijkstra -s`
 
+## Roadmap
+
+https://docs.qq.com/sheet/DWHJOZHRLZE9YaUpt?tab=BB08J2
+
 ## 学习资料
 
 - 事件驱动编程: https://stdcxx.apache.org/doc/stdlibug/11-3.html
@@ -29,13 +33,19 @@ V1 问题:
 
 - 同一个站点的 TryProcess 可能会平方增长，log 爆炸
 
-### V1.a
+### V1.a (deprecated)
 
 记录全局 floyd，且记录是否预定了 TryProcessOne。
 
+- 静态
+
 ### V1.b
 
+`dijkstra enhanced` 当有站点 buffer 比较满的时候，不选择该站点。若生成路径失败，则采用原始 `dijkstra`
 
+ref: https://www.mdpi.com/2071-1050/14/16/10367
+
+- 动态
 
 ### V2
 
