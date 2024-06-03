@@ -22,6 +22,7 @@ public:
     string id;
     double throughput;
     double process_delay;
+    double cost;
 
     set<string> buffer;
     // 下一个可以开始处理的时间

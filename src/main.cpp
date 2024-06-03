@@ -133,8 +133,8 @@ public:
         this->transport_cost += cost;
     }
 
-    void add_station(string id, double throughput, double process_delay) {
-        this->stations[id] = Station { id, throughput, process_delay };
+    void add_station(string id, double throughput, double process_delay, double cost) {
+        this->stations[id] = Station { id, throughput, process_delay, cost };
         this->routes.emplace(id, map<int, Route>());
     }
     // add route
@@ -195,7 +195,7 @@ public:
                     char p_r; // parenthesis right
 
                     ss >> id >> c >> p_l >> throughput >> c >> time_process >> c >> cost >> p_r;
-                    this->add_station(id, throughput, time_process);
+                    this->add_station(id, throughput, time_process, cost);
                 } else if (is_routes_section) {
                     std::stringstream ss(line);
                     string src;
@@ -334,7 +334,9 @@ vector<int> dijkstra(
             // cout << "  route: " << route.src << " => " << route.dst << "\n";
             string v = route.second.dst;
             // 不知道是什么种类的包裹
-            double w = route.second.time * 7.5 + route.second.cost;
+            // 包含站点处理价格
+            double w =
+                route.second.time * 7.5 + route.second.cost + stations.at(route.second.dst).cost;
             // cout << "  dist v: " << dist[v] << ", dist u: " << dist[u] << ", w: " << w << "\n";
             if (dist[u] + w < dist[v]) {
                 // cout << "    update dist: " << dist[u] + w << "\n";
@@ -395,11 +397,12 @@ TEST_CASE("dijkstra") {
     }
 }
 
+// 第 7 条路径的代价特别大
 TEST_CASE("dijkstra2") {
     auto stations = map<string, Station> {
-        { "a", Station { "a", 1.0 / 6, 2 } }, { "b", Station { "b", 1.0 / 5, 2 } },
-        { "c", Station { "c", 1.0 / 4, 2 } }, { "d", Station { "d", 1.0 / 3, 2 } },
-        { "e", Station { "e", 1.0 / 2, 2 } },
+        { "a", Station { "a", 1.0 / 6, 2, 0 } }, { "b", Station { "b", 1.0 / 5, 2, 0 } },
+        { "c", Station { "c", 1.0 / 4, 2, 0 } }, { "d", Station { "d", 1.0 / 3, 2, 0 } },
+        { "e", Station { "e", 1.0 / 2, 2, 0 } },
     };
     map<string, map<int, Route>> routes;
     routes["a"] = {
@@ -424,6 +427,41 @@ TEST_CASE("dijkstra2") {
     // }
     // cout << '\n';
     auto ans = vector<int> { 1, 4, 6 };
+    for (int i = 0; i < path.size(); i++) {
+        CHECK(path[i] == ans[i]);
+    }
+}
+
+// 到达 b 站点的代价特别大
+TEST_CASE("dijkstra3") {
+    auto stations = map<string, Station> {
+        { "a", Station { "a", 1.0 / 6, 2, 0 } }, { "b", Station { "b", 1.0 / 5, 2, 100 } },
+        { "c", Station { "c", 1.0 / 4, 2, 0 } }, { "d", Station { "d", 1.0 / 3, 2, 0 } },
+        { "e", Station { "e", 1.0 / 2, 2, 0 } },
+    };
+    map<string, map<int, Route>> routes;
+    routes["a"] = {
+        { 1, Route { 1, "a", "b", 1, 1 } },
+        { 7, Route { 7, "a", "b", 0.9, 1 } },
+        { 8, Route { 8, "a", "b", 2, 1 } },
+        { 2, Route { 2, "a", "c", 2, 1 } },
+    };
+    routes["b"] = {
+        { 3, Route { 3, "b", "c", 3, 1 } },
+        { 4, Route { 4, "b", "d", 4, 1 } },
+    };
+    routes["c"] = {
+        { 5, Route { 5, "c", "d", 5, 1 } },
+    };
+    routes["d"] = {
+        { 6, Route { 6, "d", "e", 6, 1 } },
+    };
+    auto path = dijkstra(stations, routes, "a", "e");
+    // for (const auto& station: path) {
+    //     cout << station << " ";
+    // }
+    // cout << '\n';
+    auto ans = vector<int> { 2, 5, 6 };
     for (int i = 0; i < path.size(); i++) {
         CHECK(path[i] == ans[i]);
     }
@@ -513,7 +551,8 @@ public:
                 number_package_in_station << this->time << "," << id << ","
                                           << this->sim.stations.at(id).buffer.size() << "\n";
             }
-            this->sim.add_transport_cost(0); // no cost
+            // only station cost
+            this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
             this->sim.schedule_event(new V1StartSend(
                 // [todo]
                 // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
@@ -548,6 +587,7 @@ public:
         }
         // choose path[0]
         this->sim.add_transport_cost(this->sim.routes.at(this->station).at(path[0]).cost);
+        this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
         this->sim.schedule_event(new V1StartSend(
             this->time + this->sim.stations.at(this->station).process_delay,
             this->sim,
@@ -656,8 +696,8 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
 
 TEST_CASE("simple") {
     Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
-    sim.add_station("A", 5, 2);
-    sim.add_station("B", 20, 2);
+    sim.add_station("A", 5, 2, 100);
+    sim.add_station("B", 20, 2, 100);
     sim.add_route("A", "B", 100, 50);
     sim.add_route("A", "B", 50, 10);
     sim.add_route("A", "B", 30, 66);
@@ -670,10 +710,10 @@ TEST_CASE("simple") {
 
 TEST_CASE("smart") {
     Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
-    sim.add_station("A", 1e3, 0);
-    sim.add_station("B", 1, 0);
-    sim.add_station("C", 1, 0);
-    sim.add_station("D", 1e3, 0);
+    sim.add_station("A", 1e3, 0, 0);
+    sim.add_station("B", 1, 0, 0);
+    sim.add_station("C", 1, 0, 0);
+    sim.add_station("D", 1e3, 0, 0);
     sim.add_route("A", "B", 1, 100);
     sim.add_route("A", "C", 1, 100);
     sim.add_route("B", "D", 1, 100);
@@ -687,8 +727,8 @@ TEST_CASE("smart") {
 
 TEST_CASE("buffer") {
     Simulation sim;
-    sim.add_station("a", 10, 4.5);
-    sim.add_station("b", 20, 2);
+    sim.add_station("a", 10, 4.5, 0);
+    sim.add_station("b", 20, 2, 0);
     sim.add_route("a", "b", 100, 1200);
     sim.add_order("p1", 100, PackageCategory::STANDARD, "a", "b");
     sim.add_order("p2", 100, PackageCategory::STANDARD, "a", "b");
