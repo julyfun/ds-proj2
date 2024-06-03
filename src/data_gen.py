@@ -8,9 +8,9 @@ import os
 # print("Current working directory:", os.getcwd())
 
 parameters = {
-    "station_num": 25,
+    "station_num": 15,
     "center_num": 5,
-    "packet_num": 1000,
+    "packet_num": 2500,
     "money_cost_per_dist_airline": 0.2, # line 79
     "money_cost_per_dist_highway": 0.12,# line 92
     "money_cost_per_dist_road": 0.07,   # line 105
@@ -132,7 +132,7 @@ def data_gen():
         category = np.random.choice(2, p=speed_prob)
         category_name = ["PackageCategory::STANDARD", "PackageCategory::EXPRESS"]
         # Create time of the package, during 12 time ticks(hours). Of course you can change it.
-        create_time = np.random.random() * 12
+        create_time = np.random.random() * 1
         id = uuid.uuid4()
         packets.append((id, create_time, category, f"s{src}", f"s{dst}"))
     # Sort packets by create time

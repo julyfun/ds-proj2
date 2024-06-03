@@ -17,6 +17,7 @@ app = Dash(__name__, external_stylesheets=external_stylesheets)
 event_list = pd.read_csv("./build/output.txt", skiprows=3, sep=']', header=None, names=["time", "station", "event"])
 event_list = event_list[event_list['time'].str.startswith('[')].iloc[:-3]
 event_list['time'] = event_list['time'].apply(lambda x: x.lstrip('['))
+print(event_list)
 
 station = event_list['station']
 times = event_list['time']
