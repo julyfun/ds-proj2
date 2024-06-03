@@ -532,7 +532,7 @@ void V1StartSend::process_event() {
         this->src,
         this->package,
         this->src,
-        this->sim.routes[this->src][this->route].id,
+        this->sim.routes[this->src][this->route].dst,
         this->sim.routes[this->src][this->route].time
     );
     if (this->sim.packages[this->package].dst == this->src) {
