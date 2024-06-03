@@ -25,6 +25,10 @@ make
 
 ![](doc/img/v1.svg)
 
+V1 问题:
+
+- 同一个站点的 TryProcess 可能会平方增长，log 爆炸
+
 ## 评估函数
 
 ### V0

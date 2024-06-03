@@ -1,5 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "doctest.h"
+#include "doctest/doctest.h"
 
 #include <cassert>
 #include <iostream>
@@ -106,15 +106,12 @@ public:
     // map<string, map<string,
 public:
     const StrategyVersion strategy_version = StrategyVersion::V1;
+    const EvaluateVersion evaluate_version = EvaluateVersion::V0;
 
 public:
     // strategy info
     // any other ways?
-    // [todo] 修改 Evaluate 相关
-    map<string, V2StationInfo> v2_station_info;
-
-public:
-    const EvaluateVersion evaluate_version = EvaluateVersion::V0;
+    // map<string, V2StationInfo> v2_station_info;
 
 public:
     Simulation() = default;
@@ -413,6 +410,7 @@ public:
             this->station
         );
         // 根据吞吐量判断 StartProcess 间隔
+        // [处理 cd]
         if (!rust::time_ok(this->time, this->sim.stations[this->station].start_process_ok_time)) {
             // gg
             logs(
@@ -429,6 +427,7 @@ public:
             ));
             return;
         }
+        // [没东西]
         if (this->sim.stations[this->station].buffer.empty()) {
             logs(
                 "[{:.3f}] {}] station {} failed to process one package, because there's no package.",
