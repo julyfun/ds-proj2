@@ -126,14 +126,59 @@ struct Package {
     string dst;
 };
 
+enum struct EvaluateStrategy {
+    V0,
+    V1,
+    V2,
+};
+
+struct PackageDynamicInfo {
+    string id;
+    bool finished;
+    double time_finished;
+};
+
+struct EvalFunc {
+    virtual double operator()(
+        double transport_cost,
+        const map<string, Package>& pkg,
+        const map<string, PackageDynamicInfo>& dyn
+    ) = 0;
+};
+
+struct EvalFuncV0: public EvalFunc {
+    double operator()(
+        double transport_cost,
+        const map<string, Package>& pkgs,
+        const map<string, PackageDynamicInfo>& dyn
+    ) override {
+        double tot_cost = transport_cost;
+        for (const auto& [id, pkg]: pkgs) {
+            if (!dyn.at(id).finished) {
+                tot_cost += 1e6;
+                logs("package {} not finished", id);
+                continue;
+            }
+            double time_cost = dyn.at(id).time_finished - pkg.time_created;
+            double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 10 : 5);
+            logs("package {} finished at {}, cost {}", id, dyn.at(id).time_finished, cost);
+            tot_cost += cost;
+        }
+        return tot_cost;
+    }
+};
+
 struct Simulation {
 private:
+    double current_time; // current time
     std::priority_queue<Event*, std::vector<Event*, std::allocator<Event*>>, EventComparator>
         event_queue;
     int arrived = 0;
     int route_cnt = 0;
-    double total_time = 0;
-    // int id_cnt = 0;
+    double transport_cost = 0;
+
+    // EvaluateStrategy evaluate_strategy = EvaluateStrategy::V0;
+    map<string, PackageDynamicInfo> package_dynamic_info;
 
 public:
     DataBase db;
@@ -144,15 +189,18 @@ public:
     // map<string, map<string,
 
 public:
-    double time;
-
     void run();
+
     void schedule_event(Event* event) {
         this->event_queue.push(event);
     }
 
     void
     add_order(string id, double time, PackageCategory ctg, string src, string dst); // add station
+
+    void add_transport_cost(double cost) {
+        this->transport_cost += cost;
+    }
 
     void add_station(string id, double throughput, double process_time) {
         this->stations[id] = Station { id, throughput, process_time };
@@ -168,7 +216,6 @@ public:
     }
     // arrive package
     void finish_order(string package, double time) {
-        this->total_time += time - this->packages[package].time_created;
         // finish log
         logs(
             "package {} arrived at {}, spent {}",
@@ -177,6 +224,11 @@ public:
             time - this->packages[package].time_created
         );
         this->arrived += 1;
+        this->package_dynamic_info[package].finished = true;
+        this->package_dynamic_info[package].time_finished = time;
+    }
+    double eval(EvalFunc&& eval_func) {
+        return eval_func(this->transport_cost, this->packages, this->package_dynamic_info);
     }
 };
 
@@ -189,13 +241,13 @@ void Simulation::run() {
     while (!this->event_queue.empty()) {
         Event* event = this->event_queue.top();
         this->event_queue.pop();
-        this->time = event->time;
+        this->current_time = event->time;
         event->process_event();
 
         // cout << "arrived: " << this->arrived << ", "; // "arrived: 1\n"
         // cout << "time cost: " << this->total_time << "\n";
         // in fmt
-        logs("arrived: {}, time cost: {}", this->arrived, this->total_time);
+        logs("arrived: {}, money cost: {}", this->arrived, this->transport_cost);
         delete event;
     }
 }
@@ -216,6 +268,7 @@ private:
 
 struct V0StartProcess: public Event {
 public:
+    [[deprecated("V0 is not used anymore")]]
     V0StartProcess(double t, Simulation& sim, string package, string src, int route):
         Event(t, sim),
         package(package),
@@ -429,6 +482,7 @@ public:
                 number_package_in_station << this->time << "," << id << "," << station.buffer.size()
                                           << "\n";
             }
+            this->sim.add_transport_cost(0); // no cost
             this->sim.schedule_event(new V1StartSend(
                 // [todo]
                 // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
@@ -460,6 +514,8 @@ public:
         );
         number_package_in_station << this->time << "," << this->station << ","
                                   << this->sim.stations[this->station].buffer.size() << "\n";
+        // choose path[0]
+        this->sim.add_transport_cost(this->sim.routes[this->station][path[0]].cost);
         this->sim.schedule_event(new V1StartSend(
             this->time + this->sim.stations[this->station].process_time,
             this->sim,
@@ -503,13 +559,13 @@ void Arrival::process_event() {
 void V0StartProcess::process_event() {
     std::ofstream package_trip("package_trip.csv", std::ios::app);
     logs(
-        "[{:.3f}] {}] StartProcess pack {}: {} => {}",
+        "[{:.3f}] {} StartProcess pack {}: {} => {}",
         this->time,
         this->src,
         this->src,
         this->package,
         this->src,
-        this->route
+        this->sim.routes[this->src][this->route].dst
     );
     this->sim.schedule_event(new V1StartSend(
         this->time + this->sim.stations[this->src].process_time,
@@ -553,6 +609,7 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
     // this->id_cnt += 1;
     // string id = std::to_string(this->id_cnt);
     this->packages[id] = Package { id, ctg, time, src, dst };
+    this->package_dynamic_info[id] = PackageDynamicInfo { id, false, 0.0 };
     this->schedule_event(new Arrival(time, *this, id, src));
 }
 
@@ -560,13 +617,14 @@ TEST_CASE("simple") {
     Simulation sim;
     sim.add_station("A", 5, 2);
     sim.add_station("B", 20, 2);
-    sim.add_route("A", "B", 100, 10);
+    sim.add_route("A", "B", 100, 50);
     sim.add_route("A", "B", 50, 10);
-    sim.add_route("A", "B", 30, 10);
+    sim.add_route("A", "B", 30, 66);
     sim.add_route("A", "B", 200, 10);
     sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
     sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
     sim.run();
+    logs("cost: {}", sim.eval(EvalFuncV0()));
 }
 
 TEST_CASE("buffer") {
