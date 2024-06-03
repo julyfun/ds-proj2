@@ -48,20 +48,6 @@ using strategy::StrategyVersion;
 
 using sim::Simulation;
 
-// [comptime]
-
-// double get_last_arrival_time(const DataBase& db, string package) {
-//     if (db.trips.find(package) == db.trips.end()) {
-//         return 0;
-//     }
-//     double last_time = 0;
-//     for (const auto& trip: db.trips.at(package)) {
-//         if (trip.type == TripType::ARRIVAL) {
-//             last_time = trip.time;
-//         }
-//     }
-//     return last_time;
-
 struct V2StationInfo {
     string id;
     bool try_process_dued;
