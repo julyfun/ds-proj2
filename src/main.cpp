@@ -29,12 +29,6 @@ using log::logs;
 
 // [comptime]
 
-// [const]
-
-int rand(int n) {
-    return rand() % n;
-}
-
 struct Simulation;
 
 struct Event {
