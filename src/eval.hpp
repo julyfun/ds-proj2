@@ -36,7 +36,7 @@ struct EvalFuncV0: public EvalFunc {
                 continue;
             }
             double time_cost = pkgs.at(id).time_finished - pkg.time_created;
-            double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 10 : 5);
+            double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 3 : 1);
             logs_cargo(
                 "Evaluate",
                 "package {} finished at {}, cost {}",
