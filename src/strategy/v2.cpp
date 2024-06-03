@@ -4,30 +4,126 @@
 
 namespace strategy::v2 {
 
-double StationPlan::next_arrival_time() {
+using std::make_pair;
+
+vector<int> fake_dijkstra(
+    const map<string, Station>& stations,
+    const map<string, map<int, Route>>& routes,
+    string src,
+    string dst,
+    double start_process_time,
+    const map<string, StationPlan>& station_plans,
+    double money_coefficient = 1.0,
+    double time_coefficient = 1.667
+) {
+    logs_cargo("Info", "fake_dijkstra called");
+    map<string, double> cost;
+    map<string, double> start_send_time_at_min_cost;
+    map<string, pair<string, int>> prev; // nodes' prev station and route
+    for (const auto& [id, station]: stations) {
+        cost[id] = std::numeric_limits<double>::max();
+        start_send_time_at_min_cost[id] = std::numeric_limits<double>::max();
+    }
+    cost[src] = 0;
+    start_send_time_at_min_cost[src] = start_process_time + stations.at(src).process_delay;
+    // priority_queue<pair<double, string>> q;
+    priority_queue<pair<double, string>, vector<pair<double, string>>, greater<>> q;
+
+    q.push(make_pair(0, src));
+    while (!q.empty()) {
+        auto [d, u] = q.top();
+        q.pop();
+        if (d > cost[u]) {
+            continue;
+        }
+        // if not found, edges is empty
+        auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
+        for (const auto& route: edges) {
+            string v = route.second.dst;
+
+            // logs_cargo("Info", "{} {}", u, v);
+            const double estimated_wait_time = station_plans.at(v).estimated_wait_time(
+                start_send_time_at_min_cost.at(u),
+                start_send_time_at_min_cost.at(u) + route.second.time
+            );
+            // logs_cargo("Info", "{}", estimated_wait_time);
+            double time_gonna_be_spent =
+                route.second.time + estimated_wait_time + stations.at(v).process_delay;
+            const double w = time_gonna_be_spent * time_coefficient
+                + (route.second.cost + stations.at(v).cost) * money_coefficient;
+            if (cost[u] + w < cost[v]) {
+                cost[v] = cost[u] + w;
+                start_send_time_at_min_cost[v] =
+                    start_send_time_at_min_cost.at(u) + time_gonna_be_spent;
+                prev[v] = { u, route.first };
+                q.push(make_pair(cost[v], v));
+            }
+        }
+    }
+    // print prevs
+
+    vector<int> path;
+    // for (string at = dst; at != ""; at = prev[at]) {
+    //     path.push_back(at);
+    // }
+    for (string at = dst; at != src;) {
+        auto [from, route] = prev[at];
+        // logs("from: {}, route: {}", from, route);
+        path.push_back(route);
+        at = from;
+    }
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
+double StationPlan::next_arrival_time() const {
     if (arrival_time_of_due_pkgs.empty()) {
         return std::numeric_limits<double>::max();
     }
     // return *arrival_time_of_due_pkgs.begin();
-    return arrival_time_of_due_pkgs.top();
+    return arrival_time_of_due_pkgs.top().first;
 }
 
-double StationPlan::expected_wait_time(double now) {
-    int buffer_size = this->sim.stations[id].buffer.size();
-    if (now >= this->next_arrival_time()) {
-        buffer_size += this->arrival_time_of_due_pkgs.size();
+double StationPlan::estimated_wait_time(double now, double arrive_time) const {
+    // int buffer_size = this->sim.stations[id].buffer.size();
+    // if (arrive_time >= this->next_arrival_time()) {
+    //     buffer_size += this->arrival_time_of_due_pkgs.size();
+    // }
+    // logs_cargo("Estimate", "{} {} {}", arrive_time, this->next_arrival_time(), buffer_size);
+    // const double buffer_clean_time = buffer_size / this->sim.stations[id].throughput;
+    // const double can_process_time = arrive_time - this->sim.stations[id].start_process_ok_time;
+    // const double wait_time = std::max(0.0, buffer_clean_time - can_process_time);
+    // return wait_time;
+    const Station& station = this->sim.stations.at(id);
+    const double finish_cur_buf_time = [&]() {
+        if (station.buffer.size() == 0) {
+            return now;
+        }
+        return std::max(now, station.start_process_ok_time)
+            + station.buffer.size() / station.throughput;
+    }();
+    const double next_due_arrive_time = this->next_arrival_time();
+    // （在最简单的策略下）我先到，我先处理
+    // 若没有 due 则就会执行这一步
+    if (arrive_time < next_due_arrive_time) {
+        return std::max(0.0, finish_cur_buf_time - arrive_time);
     }
-    const double buffer_clean_time = buffer_size / this->sim.stations[id].throughput;
-    const double can_process_time = now - this->sim.stations[id].start_process_ok_time;
-    const double wait_time = std::max(0.0, buffer_clean_time - can_process_time);
-    return wait_time;
+    // 假定另外一个包先到就需要处理所有 due 包（这是为了省算力）
+    const double finish_all_other_dues_time = std::max(finish_cur_buf_time, next_due_arrive_time)
+        + this->arrival_time_of_due_pkgs.size() / station.throughput;
+    return std::max(0.0, finish_all_other_dues_time - arrive_time);
 }
-void StationPlan::add_due_pkg(double t) {
-    this->arrival_time_of_due_pkgs.push(t);
+void StationPlan::add_due_pkg(double t, const string& id) {
+    this->arrival_time_of_due_pkgs.push(make_pair(t, id));
 }
-void StationPlan::pop_due_pkg(double t) {
+void StationPlan::pop_due_pkg(double t, const string& id) {
     assert(!this->arrival_time_of_due_pkgs.empty());
-    assert(rust::eq(this->arrival_time_of_due_pkgs.top(), t));
+    assert(rust::eq(this->arrival_time_of_due_pkgs.top().first, t));
+    assert(this->arrival_time_of_due_pkgs.top().second == id);
+    // if (this->arrival_time_of_due_pkgs.empty() || this->arrival_time_of_due_pkgs.top().second != id)
+    // {
+    //     return;
+    // }
     this->arrival_time_of_due_pkgs.pop();
 }
 
@@ -55,6 +151,7 @@ void V2TryProcessOne::process_event() {
             this->station
         );
         // when cd is ok, try again
+        // [todo]
         this->sim.schedule_event(new V2TryProcessOne(
             this->sim.stations.at(this->station).start_process_ok_time,
             this->sim,
@@ -83,19 +180,13 @@ void V2TryProcessOne::process_event() {
     }
     // use dijkstra
     auto path = [&]() {
-        if (this->sim.strategy_version == StrategyVersion::V1B) {
-            return dijkstra_enhanced(
-                this->sim.stations,
-                this->sim.routes,
-                this->station,
-                this->sim.packages[earlist_package].dst
-            );
-        }
-        return dijkstra(
+        return fake_dijkstra(
             this->sim.stations,
             this->sim.routes,
             this->station,
-            this->sim.packages[earlist_package].dst
+            this->sim.packages[earlist_package].dst,
+            this->time,
+            this->sim.v2_cache.station_plans
         );
     }();
     if (path.size() == 0) {
@@ -117,6 +208,9 @@ void V2TryProcessOne::process_event() {
             number_package_in_station << this->time << "," << id << ","
                                       << this->sim.stations.at(id).buffer.size() << "\n";
         }
+        // 终点不 due
+        // this->sim.v2_cache.station_plans.at().pop_due_pkg(earlist_package);
+
         // only station cost
         this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
         this->sim.schedule_event(new V2StartSend(
@@ -152,6 +246,7 @@ void V2TryProcessOne::process_event() {
                                   << this->sim.stations.at(id).buffer.size() << "\n";
     }
     // choose path[0]
+    const string dst = this->sim.routes.at(this->station).at(path[0]).dst;
     this->sim.add_transport_cost(this->sim.routes.at(this->station).at(path[0]).cost);
     this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
     this->sim.schedule_event(new V2StartSend(
@@ -161,6 +256,11 @@ void V2TryProcessOne::process_event() {
         this->station,
         path[0]
     ));
+    this->sim.v2_cache.station_plans.at(dst).add_due_pkg(
+        this->time + this->sim.stations.at(this->station).process_delay
+            + this->sim.routes.at(this->station).at(path[0]).time,
+        earlist_package
+    );
     package_trip << this->time << "," << earlist_package << "," << this->station << ","
                  << this->sim.routes.at(this->station).at(path[0]).dst << "\n";
 }
@@ -178,6 +278,9 @@ void V2Arrival::process_event() {
         this->package,
         this->station
     );
+    if (!this->is_start) {
+        this->sim.v2_cache.station_plans.at(this->station).pop_due_pkg(this->time, this->package);
+    }
     this->sim.stations.at(this->station).buffer.insert(this->package);
 
     for (const auto& [id, station]: this->sim.stations) {
@@ -224,7 +327,8 @@ void V2StartSend::process_event() {
         this->time + this->sim.routes.at(this->src).at(this->route).time,
         this->sim,
         this->package,
-        this->sim.routes.at(this->src).at(this->route).dst
+        this->sim.routes.at(this->src).at(this->route).dst,
+        false // not start
     ));
     // try process one right now (but after this StartSend guranteed by event push)
     // this->sim.schedule_event(new V2TryProcessOne(this->time, this->sim, this->src));

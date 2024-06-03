@@ -33,11 +33,13 @@ void Simulation::run() {
 void Simulation::add_order(string id, double time, PackageCategory ctg, string src, string dst) {
     // this->id_cnt += 1;
     // string id = std::to_string(this->id_cnt);
-    this->packages[id] = Package { id, ctg, time, src, dst, false, 0.0 };
+    this->packages[id] = Package { id, ctg, time, src, dst, false, -10086 };
     if (this->strategy_version == StrategyVersion::V1
         || this->strategy_version == StrategyVersion::V1B)
     {
         this->schedule_event(new V1Arrival(time, *this, id, src));
+    } else if (this->strategy_version == StrategyVersion::V2) {
+        this->schedule_event(new strategy::v2::V2Arrival(time, *this, id, src, true));
     }
 }
 

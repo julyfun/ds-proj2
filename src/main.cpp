@@ -48,15 +48,6 @@ using strategy::StrategyVersion;
 
 using sim::Simulation;
 
-struct V2StationInfo {
-    string id;
-    bool try_process_dued;
-};
-
-struct V1ACache {
-    bool init = false;
-};
-
 TEST_CASE("simple") {
     Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
     sim.add_station("A", 5, 2, 100);
@@ -85,21 +76,23 @@ TEST_CASE("simple-v1b") {
     logs("cost: {}", sim.eval());
 }
 
-TEST_CASE("smart") {
-    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
-    sim.add_station("A", 1e3, 0, 0);
-    sim.add_station("B", 1, 0, 0);
-    sim.add_station("C", 1, 0, 0);
-    sim.add_station("D", 1e3, 0, 0);
-    sim.add_route("A", "B", 1, 100);
-    sim.add_route("A", "C", 1, 100);
-    sim.add_route("B", "D", 1, 100);
-    sim.add_route("C", "D", 2, 100);
-    for (int i = 1; i <= 100; i++) {
-        sim.add_order("p" + std::to_string(i), 0, PackageCategory::STANDARD, "A", "D");
+TEST_CASE("smart-pk") {
+    for (int i = 1; i <= 2; i++) {
+        Simulation sim { i == 1 ? StrategyVersion::V1 : StrategyVersion::V2, EvaluateVersion::V0 };
+        sim.add_station("A", 1e3, 0, 0);
+        sim.add_station("B", 1, 0, 0);
+        sim.add_station("C", 1, 0, 0);
+        sim.add_station("D", 1e3, 0, 0);
+        sim.add_route("A", "B", 1, 1);
+        sim.add_route("A", "C", 1, 1);
+        sim.add_route("B", "D", 1, 1);
+        sim.add_route("C", "D", 1.01, 1);
+        for (int i = 1; i <= 100; i++) {
+            sim.add_order("p" + std::to_string(i), 0.001 * i, PackageCategory::STANDARD, "A", "D");
+        }
+        sim.run();
+        log::ecargo("Tag", "cost: {}", sim.eval());
     }
-    sim.run();
-    logs("cost: {}", sim.eval());
 }
 
 TEST_CASE("buffer") {
@@ -116,11 +109,36 @@ TEST_CASE("buffer") {
     sim.run();
 }
 
-TEST_CASE("main") {
-    cout << "Begin\n";
-    Simulation sim;
-    sim.read_data("../data.txt");
+TEST_CASE("v1-main") {
+    Simulation sim { StrategyVersion::V1B, EvaluateVersion::V0 };
+    sim.read_data("../data/data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
-    cout << "End\n";
+    logs("cost: {}", sim.eval());
+}
+
+TEST_CASE("v2-main") {
+    Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
+    sim.read_data("../data/data.txt");
+    // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
+    sim.run();
+    logs("cost: {}", sim.eval());
+    // print all plans' size' in v2_cache
+    // for (auto& [key, value]: sim.v2_cache.station_plans) {
+    //     CHECK(value.arrival_time_of_due_pkgs.size() == 0);
+    // }
+}
+
+TEST_CASE("v2-simple") {
+    Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
+    sim.add_station("A", 5, 2, 100);
+    sim.add_station("B", 20, 2, 100);
+    sim.add_route("A", "B", 100, 50);
+    sim.add_route("A", "B", 50, 10);
+    sim.add_route("A", "B", 30, 66);
+    sim.add_route("A", "B", 200, 10);
+    sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
+    sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
+    sim.run();
+    logs("cost: {}", sim.eval());
 }

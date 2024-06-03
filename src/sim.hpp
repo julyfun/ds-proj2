@@ -82,7 +82,7 @@ public:
     // strategy info
     // any other ways?
     // map<string, V2StationInfo> v2_station_info;
-    strategy::v2::V2Cache v2_cache { *this };
+    strategy::v2::V2Cache v2_cache;
 
 public:
     Simulation() = default;
@@ -106,6 +106,10 @@ public:
     void add_station(string id, double throughput, double process_delay, double cost) {
         this->stations[id] = Station { id, throughput, process_delay, cost };
         this->routes.emplace(id, map<int, Route>());
+
+        if (this->strategy_version == StrategyVersion::V2) {
+            this->v2_cache.station_plans.emplace(id, strategy::v2::StationPlan(id, *this));
+        }
     }
     // add route
     void add_route(string src, string dst, double time, double cost) {

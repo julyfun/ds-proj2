@@ -21,6 +21,7 @@ using sim::Simulation;
 using std::greater;
 using std::map;
 using std::multiset;
+using std::pair;
 using std::priority_queue;
 using std::string;
 using std::vector;
@@ -36,32 +37,36 @@ struct StationPlan {
     string id;
     Simulation& sim;
 
-    priority_queue<double, vector<double>, greater<>> arrival_time_of_due_pkgs;
+    priority_queue<pair<double, string>, vector<pair<double, string>>, greater<>>
+        arrival_time_of_due_pkgs;
     // 视为开始 buffer 增加的时间
-    double next_arrival_time();
-    double expected_wait_time(double now);
-    void add_due_pkg(double t);
-    void pop_due_pkg(double t);
+    double next_arrival_time() const;
+    double estimated_wait_time(double now, double arrive_time) const;
+    void add_due_pkg(double t, const string& id);
+    void pop_due_pkg(double t, const string& id);
 };
 
 // for Simulation to store
 struct V2Cache {
+    V2Cache() = default;
     explicit V2Cache(Simulation& sim);
     map<string, StationPlan> station_plans;
 };
 
 struct V2Arrival: public Event {
 public:
-    V2Arrival(double t, Simulation& sim, string package, string dst):
+    V2Arrival(double t, Simulation& sim, string package, string dst, bool is_start):
         Event(t, sim),
         package(package),
-        station(dst) {}
+        station(dst),
+        is_start(is_start) {}
 
     void process_event() override;
 
 private:
     string package;
     string station;
+    bool is_start;
 };
 
 // [可能是送原地，即完成配送]

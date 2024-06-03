@@ -43,7 +43,20 @@ void logs_cargo(const std::string_view& cargo, const std::string_view& msg, T&&.
         fmt::format(fg(fmt::rgb(0xADE099)) | fmt::emphasis::bold, fmt::format("{:>12}", cargo));
     // fmt::println(file, fmt::runtime(str), std::forward<T>(args)...);
     std::string msg_str = fmt::format(msg, std::forward<T>(args)...);
-    fmt::println("{} {}", cargo_str, msg_str);
+    fmt::println(file, "{} {}", cargo_str, msg_str);
+    // fclose(file); // Better use RAII instead.
+}
+
+template<typename... T>
+void ecargo(const std::string_view& cargo, const std::string_view& msg, T&&... args) {
+    // std::filesystem::path file_path("log.txt");
+    // auto* file = fopen(file_path.string().c_str(), "w");
+    auto* file = stderr;
+    std::string cargo_str =
+        fmt::format(fg(fmt::rgb(0xADE099)) | fmt::emphasis::bold, fmt::format("{:>12}", cargo));
+    // fmt::println(file, fmt::runtime(str), std::forward<T>(args)...);
+    std::string msg_str = fmt::format(msg, std::forward<T>(args)...);
+    fmt::println(file, "{} {}", cargo_str, msg_str);
     // fclose(file); // Better use RAII instead.
 }
 

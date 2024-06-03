@@ -32,10 +32,10 @@ enum struct StrategyVersion {
 inline vector<int> dijkstra(
     const map<string, Station>& stations,
     const map<string, map<int, Route>>& routes,
-    string src,
-    string dst,
-    double money_coefficient = 1.0,
-    double time_coefficient = 1.667
+    const string src,
+    const string dst,
+    const double money_coefficient = 1.0,
+    const double time_coefficient = 1.667
 ) {
     logs_cargo("Info", "dijkstra called");
     map<string, double> dist;
@@ -65,7 +65,7 @@ inline vector<int> dijkstra(
             string v = route.second.dst;
             // 不知道是什么种类的包裹
             // 包含站点处理价格
-            double w = route.second.time * time_coefficient
+            double w = (route.second.time + stations.at(v).process_delay) * time_coefficient
                 + (route.second.cost + stations.at(route.second.dst).cost) * money_coefficient;
             // cout << "  dist v: " << dist[v] << ", dist u: " << dist[u] << ", w: " << w << "\n";
             if (dist[u] + w < dist[v]) {
@@ -96,10 +96,10 @@ inline vector<int> dijkstra(
 inline vector<int> dijkstra_enhanced(
     const map<string, Station>& stations,
     const map<string, map<int, Route>>& routes,
-    string src,
-    string dst,
-    double money_coefficient = 1.0,
-    double time_coefficient = 1.667
+    const string src,
+    const string dst,
+    const double money_coefficient = 1.0,
+    const double time_coefficient = 1.667
 ) {
     // called
     logs_cargo("Info", "dijkstra_enhanced called");
@@ -127,7 +127,7 @@ inline vector<int> dijkstra_enhanced(
         auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
         for (const auto& route: edges) {
             string v = route.second.dst;
-            double w = route.second.time * time_coefficient
+            double w = (route.second.time + stations.at(v).process_delay) * time_coefficient
                 + (route.second.cost + stations.at(route.second.dst).cost) * money_coefficient;
 
             bool station_full = false;
