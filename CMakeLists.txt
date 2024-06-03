@@ -11,5 +11,5 @@ include_directories("third_party/fmt/include")
 include_directories("third_party/doctest")
 
 include_directories(src)
-add_executable(run src/main.cpp)
+add_executable(run "src/main.cpp" "src/strategy.cpp")
 target_link_libraries(run fmt::fmt)
