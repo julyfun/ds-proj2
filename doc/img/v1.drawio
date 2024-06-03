@@ -7,26 +7,31 @@
                 <mxCell id="4" style="edgeStyle=none;html=1;" parent="1" source="2" target="3" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="9" value="成功&lt;br&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4" vertex="1" connectable="0">
+                <mxCell id="9" value="如果成功，则预定 process_delay 后的&lt;br&gt;V1StartSend（包含到达站点信息）" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="4" vertex="1" connectable="0">
                     <mxGeometry x="-0.1465" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
+                        <mxPoint x="15" y="8" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="14" style="edgeStyle=none;html=1;" parent="1" source="2" edge="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="130" y="290" as="targetPoint"/>
+                        <mxPoint x="80" y="230" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="15" value="没有包裹" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="14" vertex="1" connectable="0">
+                <mxCell id="15" value="如果没有包裹，什么都不做" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="14" vertex="1" connectable="0">
                     <mxGeometry x="0.0436" y="4" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="2" value="V1TryProcessOne&lt;br&gt;寻找当前站点到终点的最短路" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="200" y="170" width="120" height="60" as="geometry"/>
+                    <mxGeometry x="170" y="140" width="120" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="12" style="edgeStyle=none;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="3" target="11" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="预定路程时间后的 V1Arrival" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="12">
+                    <mxGeometry x="-0.2501" y="1" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="3" value="V1StartSend" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="270" y="300" width="120" height="60" as="geometry"/>
@@ -40,16 +45,29 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="8" value="如果站点 busy，则等待 ok_time 再次发起这个事件" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="7" vertex="1" connectable="0">
+                <mxCell id="8" value="如果站点 busy，则在 ok_time 预定再次尝试" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="7" vertex="1" connectable="0">
                     <mxGeometry x="0.5181" y="-15" relative="1" as="geometry">
                         <mxPoint x="14" y="-19" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="13" value="在终点立即发起&lt;br&gt;V1TryProcessOne" style="edgeStyle=none;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="11" target="2" edge="1">
+                <mxCell id="13" value="在到达的站点立即预定&lt;br&gt;V1TryProcessOne" style="edgeStyle=none;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="11" target="2" edge="1">
+                    <mxGeometry x="-0.0026" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="11" value="V1Arrival" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="520" y="210" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="17" target="11">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="11" value="Arrival" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="540" y="190" width="120" height="60" as="geometry"/>
+                <mxCell id="20" value="立即" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="18">
+                    <mxGeometry x="0.2125" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="17" value="新增订单" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="80" width="120" height="50" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
