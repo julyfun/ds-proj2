@@ -98,8 +98,8 @@ def data_gen():
                 edges.append((station_id[j], center_id[i], 0.6 * dist, 0.12 * dist))
                 plt.plot([center_pos[i][0], station_pos[j][0]], [
                          center_pos[i][1], station_pos[j][1]], 'b--')
-                print(edges[-2])
-                print(edges[-1])
+                # print(edges[-2])
+                # print(edges[-1])
     print("Edges (station to station):")    # Roads
     for i in range(parameters["station_num"]):
         for j in range(parameters["station_num"]):
@@ -153,7 +153,7 @@ def data_gen():
 
 if __name__ == '__main__':
     data = data_gen()
-    with open("./build/data.txt", "w") as f:
+    with open("data.txt", "w") as f:
         f.write("stations:"+"\n")
         for i, station in enumerate(data["station_id"]):
             f.write(station+' , '+
@@ -194,4 +194,5 @@ if __name__ == '__main__':
     with open("routes.csv", "w") as f:
         for i, edge in enumerate(data["edges"]):
             f.write(edge[0]+','+
-                    edge[1]+'\n')
+                    edge[1]+','+
+                    str(edge[2])+'\n')

@@ -181,10 +181,11 @@ public:
 };
 
 void Simulation::run() {
-    // std::ofstream file("output.txt");
     std::ofstream number_package_in_station("number_package_in_station.csv");
-    // file.clear();
     number_package_in_station.clear();
+    std::ofstream package_trip("package_trip.csv");
+    package_trip.clear();
+
     while (!this->event_queue.empty()) {
         Event* event = this->event_queue.top();
         this->event_queue.pop();
@@ -195,7 +196,6 @@ void Simulation::run() {
         // cout << "time cost: " << this->total_time << "\n";
         // in fmt
         logs("arrived: {}, time cost: {}", this->arrived, this->total_time);
-        // file << "arrived: " << this->arrived << ", " << "time cost: " << this->total_time << "\n"; // TODO
         delete event;
     }
 }
@@ -355,13 +355,19 @@ public:
         // std::ofstream file("output.txt", std::ios::app);
         // std::ofstream file("output.txt", std::ios::app);
         std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
+        std::ofstream package_trip("package_trip.csv", std::ios::app);
 
-        logs("[{:.3f}] station {} try to process one.", this->time, this->station);
+        logs(
+            "[{:.3f}] {}] station {} try to process one.",
+            this->time,
+            this->station,
+            this->station
+        );
         // 根据吞吐量判断 StartProcess 间隔
         if (!rust::time_ok(this->time, this->sim.stations[this->station].start_process_ok_time)) {
             // gg
             logs(
-                "[{:.3f}] station {} failed to process one package, because start-process is in cd",
+                "[{:.3f}] {}] station {} failed to process one package, because start-process is in cd",
                 this->time,
                 this->station,
                 this->station
@@ -379,7 +385,7 @@ public:
         }
         if (this->sim.stations[this->station].buffer.empty()) {
             logs(
-                "[{:.3f}] station {} failed to process one package, because there's no package.",
+                "[{:.3f}] {}] station {} failed to process one package, because there's no package.",
                 this->time,
                 this->station,
                 this->station
@@ -405,7 +411,7 @@ public:
         if (path.size() == 0) {
             // already at src
             logs(
-                "[{:.3f}] station {} is already at the src of {}, final process and SENT.",
+                "[{:.3f}] {}] station {} is already at the src of {}, final process and SENT.",
                 this->time,
                 this->station,
                 this->station,
@@ -437,6 +443,8 @@ public:
                 this->sim,
                 this->station
             ));
+            package_trip << this->time << "," << earliest << "," << this->station << ","
+                         << this->station << "\n";
             return;
         }
         logs(
@@ -459,6 +467,8 @@ public:
             this->station,
             path[0]
         ));
+        package_trip << this->time << "," << earliest << "," << this->station << "," << path[1]
+                     << "\n";
     }
 };
 
@@ -466,14 +476,23 @@ void Arrival::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
+    std::ofstream package_trip("package_trip.csv", std::ios::app);
 
-    logs("[{:.3f}] Arrival pack {}: {}", this->time, this->package, this->station);
+    logs(
+        "[{:.3f}] {}] Arrival pack {}: {}",
+        this->time,
+        this->station,
+        this->package,
+        this->station
+    );
     this->sim.stations[this->station].buffer.insert(this->package);
 
     for (const auto& [id, station]: this->sim.stations) {
         number_package_in_station << this->time << "," << id << "," << station.buffer.size()
                                   << "\n";
     }
+    package_trip << this->time << "," << this->package << "," << this->station << ","
+                 << this->station << "\n";
     this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->station));
     // this->sim.schedule_event();
     // [test]
@@ -482,10 +501,11 @@ void Arrival::process_event() {
 }
 
 void V0StartProcess::process_event() {
-    // std::ofstream file("output.txt", std::ios::app);
+    std::ofstream package_trip("package_trip.csv", std::ios::app);
     logs(
-        "[{:.3f}] StartProcess pack {}: {} => {}",
+        "[{:.3f}] {}] StartProcess pack {}: {} => {}",
         this->time,
+        this->src,
         this->src,
         this->package,
         this->src,
@@ -498,6 +518,7 @@ void V0StartProcess::process_event() {
         this->src,
         this->route
     ));
+    package_trip << this->time << "," << this->package << "," << this->src << "," << dst << "\n";
 }
 
 void V1StartSend::process_event() {
@@ -564,12 +585,8 @@ TEST_CASE("buffer") {
 TEST_CASE("main") {
     cout << "Begin\n";
     Simulation sim;
-    // sim.add_station("a", 2.2, 4.5);
-    // sim.add_station("b", 1.0 / 5, 2);
-    // sim.add_route("a", "b", 100, 1200);
-    // sim.add_order(100, PackageCategory::STANDARD, "a", "b");
-    // sim.add_order(100, PackageCategory::EXPRESS, "a", "b")
-    std::ifstream file("data.txt", std::ios::in);
+
+    std::ifstream file("../data.txt", std::ios::in);
     if (file.is_open()) {
         string line;
         bool is_stations_section = false;
@@ -599,7 +616,7 @@ TEST_CASE("main") {
                 ss >> id >> c >> p_l >> throughput >> c >> time_process >> c >> cost >> p_r;
                 // cout << "id: " << id << " throughput: " << throughput
                 //  << " time process:" << time_process << std::endl;
-                sim.add_station(id, 1 / throughput, time_process);
+                sim.add_station(id, throughput, time_process);
 
             } else if (is_routes_section) {
                 std::stringstream ss(line);
