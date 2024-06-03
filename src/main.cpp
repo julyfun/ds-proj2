@@ -1,7 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "doctest.h"
+#include "doctest/doctest.h"
 
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <queue>
@@ -14,6 +15,7 @@
 #include "fmt/core.h"
 #include "log.hpp"
 #include "rust.hpp"
+#include "strategy.hpp"
 
 // using fmt::logs;
 using std::cout;
@@ -28,15 +30,19 @@ using std::string;
 using std::vector;
 
 using log::logs;
+using log::logs_cargo;
 
 using base::Package;
 using base::PackageCategory;
-using base::PackageDynamicInfo;
 using base::Route;
 using base::Station;
 
 using eval::EvalFunc;
 using eval::EvalFuncV0;
+using eval::EvaluateVersion;
+
+using strategy::dijkstra;
+using strategy::StrategyVersion;
 
 // [comptime]
 
@@ -71,7 +77,17 @@ struct EventComparator {
 //         }
 //     }
 //     return last_time;
-// }
+
+struct V2StationInfo {
+    string id;
+    bool try_process_dued;
+};
+
+const std::pair<EvaluateVersion, EvalFunc*> EVALUATE_FUNC_MAP[] = {
+    { EvaluateVersion::V0, new EvalFuncV0 },
+    // { EvaluateVersion::V1,
+    //   new EvalFuncV0 }
+};
 
 struct Simulation {
 private:
@@ -83,7 +99,6 @@ private:
     double transport_cost = 0;
 
     // EvaluateStrategy evaluate_strategy = EvaluateStrategy::V0;
-    map<string, PackageDynamicInfo> package_dynamic_info;
 
 public:
     map<string, Station> stations;
@@ -91,8 +106,21 @@ public:
     map<string, Package> packages;
 
     // map<string, map<string,
+public:
+    const StrategyVersion strategy_version = StrategyVersion::V1;
+    const EvaluateVersion evaluate_version = EvaluateVersion::V0;
 
 public:
+    // strategy info
+    // any other ways?
+    // map<string, V2StationInfo> v2_station_info;
+
+public:
+    Simulation() = default;
+    Simulation(StrategyVersion strategy_version, EvaluateVersion evaluate_version):
+        strategy_version(strategy_version),
+        evaluate_version(evaluate_version) {}
+
     void run();
 
     void schedule_event(Event* event) {
@@ -106,8 +134,9 @@ public:
         this->transport_cost += cost;
     }
 
-    void add_station(string id, double throughput, double process_time) {
-        this->stations[id] = Station { id, throughput, process_time };
+    void add_station(string id, double throughput, double process_delay, double cost) {
+        this->stations[id] = Station { id, throughput, process_delay, cost };
+        this->routes.emplace(id, map<int, Route>());
     }
     // add route
     void add_route(string src, string dst, double time, double cost) {
@@ -116,7 +145,7 @@ public:
         assert(this->stations.find(dst) != this->stations.end());
         this->route_cnt += 1;
         auto route = Route { this->route_cnt, src, dst, time, cost };
-        this->routes[src].emplace(this->route_cnt, route); // add key value
+        this->routes.at(src).emplace(this->route_cnt, route); // add key value
     }
     // arrive package
     void finish_order(string package, double time) {
@@ -128,11 +157,14 @@ public:
             time - this->packages[package].time_created
         );
         this->arrived += 1;
-        this->package_dynamic_info[package].finished = true;
-        this->package_dynamic_info[package].time_finished = time;
+        this->packages[package].finished = true;
+        this->packages[package].time_finished = time;
     }
-    double eval(EvalFunc&& eval_func) {
-        return eval_func(this->transport_cost, this->packages, this->package_dynamic_info);
+    double eval() {
+        return (*(EVALUATE_FUNC_MAP[static_cast<int>(this->evaluate_version)].second))(
+            this->transport_cost,
+            this->packages
+        );
     }
 
     void read_data(const string& path) {
@@ -164,7 +196,7 @@ public:
                     char p_r; // parenthesis right
 
                     ss >> id >> c >> p_l >> throughput >> c >> time_process >> c >> cost >> p_r;
-                    this->add_station(id, throughput, time_process);
+                    this->add_station(id, throughput, time_process, cost);
                 } else if (is_routes_section) {
                     std::stringstream ss(line);
                     string src;
@@ -197,11 +229,8 @@ public:
 };
 
 void Simulation::run() {
-    std::ofstream number_package_in_station("number_package_in_station.csv");
-    number_package_in_station.clear();
-    std::ofstream package_trip("package_trip.csv");
-    package_trip.clear();
-
+    // chrono
+    auto start_time = std::chrono::high_resolution_clock::now();
     while (!this->event_queue.empty()) {
         Event* event = this->event_queue.top();
         this->event_queue.pop();
@@ -214,6 +243,12 @@ void Simulation::run() {
         logs("arrived: {}, money cost: {}", this->arrived, this->transport_cost);
         delete event;
     }
+    auto spent_run_time = std::chrono::high_resolution_clock::now() - start_time;
+    logs_cargo(
+        "Run",
+        "{}ms spent for simulation",
+        std::chrono::duration<double, std::milli>(spent_run_time).count()
+    );
 }
 
 struct V1Arrival: public Event {
@@ -265,168 +300,6 @@ private:
     int route;
 };
 
-// 使用堆优化 dijkstra 求解时间最短路，返回最短路整条路径 id vector
-// routes[x] is all routes of x
-// routes[x][rid] is route of x
-vector<int> dijkstra(
-    const map<string, Station>& stations,
-    const map<string, map<int, Route>>& routes,
-    string src,
-    string dst
-) {
-    map<string, double> dist;
-    map<string, pair<string, int>> prev; // nodes' prev station and route
-    for (const auto& [id, station]: stations) {
-        dist[id] = std::numeric_limits<double>::max();
-    }
-    dist[src] = 0;
-    // priority_queue<pair<double, string>> q;
-    priority_queue<
-        pair<double, string>,
-        vector<pair<double, string>>,
-        greater<pair<double, string>>>
-        q;
-
-    q.push(make_pair(0, src));
-    while (!q.empty()) {
-        auto [d, u] = q.top();
-        q.pop();
-        if (d > dist[u]) {
-            continue;
-        }
-        // if not found, edges is empty
-        auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
-        for (const auto& route: edges) {
-            // cout << "  route: " << route.src << " => " << route.dst << "\n";
-            string v = route.second.dst;
-            double w = route.second.time;
-            // cout << "  dist v: " << dist[v] << ", dist u: " << dist[u] << ", w: " << w << "\n";
-
-            if (dist[u] + w < dist[v]) {
-                // cout << "    update dist: " << dist[u] + w << "\n";
-                dist[v] = dist[u] + w;
-                prev[v] = { u, route.first };
-                // cout << "    prev: " << prev[v] << "\n";
-                q.push(make_pair(dist[v], v));
-            }
-        }
-    }
-    // print prevs
-
-    vector<int> path;
-    // for (string at = dst; at != ""; at = prev[at]) {
-    //     path.push_back(at);
-    // }
-    for (string at = dst; at != src;) {
-        auto [from, route] = prev[at];
-        // logs("from: {}, route: {}", from, route);
-        path.push_back(route);
-        at = from;
-    }
-    std::reverse(path.begin(), path.end());
-    return path;
-}
-
-// enhanced dijkstra
-vector<int> dijkstra_enhanced(
-    const map<string, Station>& stations,
-    const map<string, map<int, Route>>& routes,
-    string src,
-    string dst
-) {
-    map<string, double> dist;
-    map<string, pair<string, int>> prev; // nodes' prev station and route
-    for (const auto& [id, station]: stations) {
-        dist[id] = std::numeric_limits<double>::max();
-    }
-    dist[src] = 0;
-    // priority_queue<pair<double, string>> q;
-    priority_queue<
-        pair<double, string>,
-        vector<pair<double, string>>,
-        greater<pair<double, string>>>
-        q;
-
-    q.push(make_pair(0, src));
-    while (!q.empty()) {
-        auto [d, u] = q.top();
-        q.pop();
-        if (d > dist[u]) {
-            continue;
-        }
-
-        auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
-        for (const auto& route: edges) {
-            string v = route.second.dst;
-            double w = route.second.time;
-            bool station_full = false;
-
-            if (stations.find(v) != stations.end()
-                && stations.at(v).buffer.size() > stations.at(v).throughput && v != dst)
-            {
-                station_full = true;
-            }
-            if (dist[u] + w < dist[v] && !station_full) {
-                dist[v] = dist[u] + w;
-                prev[v] = { u, route.first };
-                q.push(make_pair(dist[v], v));
-            }
-        }
-    }
-    vector<int> path;
-
-    for (string at = dst; at != src;) {
-        auto [from, route] = prev[at];
-        path.push_back(route);
-        at = from;
-    }
-    std::reverse(path.begin(), path.end());
-    return path;
-}
-
-TEST_CASE("dijkstra") {
-    auto stations = map<string, Station> {
-        { "a", Station { "a", 6, 2 } }, { "b", Station { "b", 5, 2 } },
-        { "c", Station { "c", 4, 2 } }, { "d", Station { "d", 3, 2 } },
-        { "e", Station { "e", 2, 2 } },
-    };
-    map<string, map<int, Route>> routes;
-    routes["a"] = {
-        { 1, Route { 1, "a", "b", 1, 1 } },
-        { 7, Route { 7, "a", "b", 0.9, 1 } },
-        { 8, Route { 8, "a", "b", 2, 1 } },
-        { 2, Route { 2, "a", "c", 2, 2 } },
-    };
-    routes["b"] = {
-        { 3, Route { 3, "b", "c", 3, 3 } },
-        { 4, Route { 4, "b", "d", 4, 4 } },
-        { 9, Route { 9, "b", "e", 15, 4 } },
-    };
-    routes["c"] = {
-        { 5, Route { 5, "c", "d", 5, 5 } },
-    };
-    routes["d"] = {
-        { 6, Route { 6, "d", "e", 6, 6 } },
-    };
-    for (int i = 0; i < 10; i++) {
-        stations["d"].buffer.insert("p" + std::to_string(i));
-    }
-    auto path = dijkstra(stations, routes, "a", "e");
-    // for (const auto& station: path) {
-    //     cout << station << " ";
-    // }
-    // cout << '\n';
-    auto ans = vector<int> { 7, 9 };
-    for (int i = 0; i < path.size(); i++) {
-        CHECK(path[i] == ans[i]);
-    }
-    logs(
-        "buffer size of d: {}, throughput of d: {}",
-        stations["d"].buffer.size(),
-        stations["d"].throughput
-    );
-}
-
 // 检查 buffer 和从 buffer 中拿出内容 buffer 必须在同一个 event
 struct V1TryProcessOne: public Event {
 private:
@@ -448,7 +321,9 @@ public:
             this->station
         );
         // 根据吞吐量判断 StartProcess 间隔
-        if (!rust::time_ok(this->time, this->sim.stations[this->station].start_process_ok_time)) {
+        // [处理 cd]
+        if (!rust::time_ok(this->time, this->sim.stations.at(this->station).start_process_ok_time))
+        {
             // gg
             logs(
                 "[{:.3f}] {}] station {} failed to process one package, because start-process is in cd",
@@ -458,13 +333,14 @@ public:
             );
             // when cd is ok, try again
             this->sim.schedule_event(new V1TryProcessOne(
-                this->sim.stations[this->station].start_process_ok_time,
+                this->sim.stations.at(this->station).start_process_ok_time,
                 this->sim,
                 this->station
             ));
             return;
         }
-        if (this->sim.stations[this->station].buffer.empty()) {
+        // [没东西]
+        if (this->sim.stations.at(this->station).buffer.empty()) {
             logs(
                 "[{:.3f}] {}] station {} failed to process one package, because there's no package.",
                 this->time,
@@ -474,8 +350,8 @@ public:
             return;
         }
         // [process success]
-        string earlist_package = *this->sim.stations[this->station].buffer.begin();
-        for (const auto& package: this->sim.stations[this->station].buffer) {
+        string earlist_package = *this->sim.stations.at(this->station).buffer.begin();
+        for (const auto& package: this->sim.stations.at(this->station).buffer) {
             if (this->sim.packages[package].time_created
                 < this->sim.packages[earlist_package].time_created)
             {
@@ -502,26 +378,25 @@ public:
             // this->sim.stations[this->station].buffer.erase(earliest);
             // this->sim.stations[this->station].processing_package = earliest;
             // 会修改 ok_time
-            this->sim.stations[this->station].take_package_from_buffer_to_processing(
-                earlist_package,
-                this->time
-            );
+            this->sim.stations.at(this->station)
+                .take_package_from_buffer_to_processing(earlist_package, this->time);
             for (const auto& [id, station]: this->sim.stations) {
                 number_package_in_station << this->time << "," << id << ","
-                                          << this->sim.stations[id].buffer.size() << "\n";
+                                          << this->sim.stations.at(id).buffer.size() << "\n";
             }
-            this->sim.add_transport_cost(0); // no cost
+            // only station cost
+            this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
             this->sim.schedule_event(new V1StartSend(
                 // [todo]
                 // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
-                this->time + this->sim.stations[this->station].process_delay,
+                this->time + this->sim.stations.at(this->station).process_delay,
                 this->sim,
                 earlist_package,
                 this->station,
-                0
+                -1
             ));
             this->sim.schedule_event(new V1TryProcessOne(
-                this->sim.stations[this->station].start_process_ok_time,
+                this->sim.stations.at(this->station).start_process_ok_time,
                 this->sim,
                 this->station
             ));
@@ -535,27 +410,26 @@ public:
             this->station,
             this->station,
             earlist_package,
-            this->sim.routes[this->station][path[0]].dst
+            this->sim.routes.at(this->station).at(path[0]).dst
         );
-        this->sim.stations[this->station].take_package_from_buffer_to_processing(
-            earlist_package,
-            this->time
-        );
+        this->sim.stations.at(this->station)
+            .take_package_from_buffer_to_processing(earlist_package, this->time);
         for (const auto& [id, station]: this->sim.stations) {
             number_package_in_station << this->time << "," << id << ","
-                                      << this->sim.stations[id].buffer.size() << "\n";
+                                      << this->sim.stations.at(id).buffer.size() << "\n";
         }
         // choose path[0]
-        this->sim.add_transport_cost(this->sim.routes[this->station][path[0]].cost);
+        this->sim.add_transport_cost(this->sim.routes.at(this->station).at(path[0]).cost);
+        this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
         this->sim.schedule_event(new V1StartSend(
-            this->time + this->sim.stations[this->station].process_delay,
+            this->time + this->sim.stations.at(this->station).process_delay,
             this->sim,
             earlist_package,
             this->station,
             path[0]
         ));
         package_trip << this->time << "," << earlist_package << "," << this->station << ","
-                     << this->sim.routes[this->station][path[0]].dst << "\n";
+                     << this->sim.routes.at(this->station).at(path[0]).dst << "\n";
     }
 };
 
@@ -572,11 +446,11 @@ void V1Arrival::process_event() {
         this->package,
         this->station
     );
-    this->sim.stations[this->station].buffer.insert(this->package);
+    this->sim.stations.at(this->station).buffer.insert(this->package);
 
     for (const auto& [id, station]: this->sim.stations) {
         number_package_in_station << this->time << "," << id << ","
-                                  << this->sim.stations[id].buffer.size() << "\n";
+                                  << this->sim.stations.at(id).buffer.size() << "\n";
     }
     package_trip << this->time << "," << this->package << "," << this->station << ","
                  << this->station << "\n";
@@ -599,7 +473,7 @@ void V0StartProcess::process_event() {
         this->sim.routes[this->src][this->route].dst
     );
     this->sim.schedule_event(new V1StartSend(
-        this->time + this->sim.stations[this->src].process_delay,
+        this->time + this->sim.stations.at(this->src).process_delay,
         this->sim,
         this->package,
         this->src,
@@ -612,26 +486,35 @@ void V0StartProcess::process_event() {
 void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
-    logs(
-        "[{:.3f}] {}] StartSend pack {}: {} => {}, time",
-        this->time,
-        this->src,
-        this->package,
-        this->src,
-        this->sim.routes[this->src][this->route].dst,
-        this->sim.routes[this->src][this->route].time
-    );
     if (this->sim.packages[this->package].dst == this->src) {
+        logs(
+            "[{:.3f}] {}] StartSend pack {}: {} => {}, time {}",
+            this->time,
+            this->src,
+            this->package,
+            this->src,
+            this->src,
+            0
+        );
         // package has arrived
         this->sim.finish_order(this->package, this->time);
         return;
     }
+    logs(
+        "[{:.3f}] {}] StartSend pack {}: {} => {}, time {}",
+        this->time,
+        this->src,
+        this->package,
+        this->src,
+        this->sim.routes.at(this->src).at(this->route).dst,
+        this->sim.routes.at(this->src).at(this->route).time
+    );
     this->sim.schedule_event(new V1Arrival(
         // find src => dst route
-        this->time + this->sim.routes[this->src][this->route].time,
+        this->time + this->sim.routes.at(this->src).at(this->route).time,
         this->sim,
         this->package,
-        this->sim.routes[this->src][this->route].dst
+        this->sim.routes.at(this->src).at(this->route).dst
     ));
     // try process one right now (but after this StartSend guranteed by event push)
     // this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
@@ -640,15 +523,14 @@ void V1StartSend::process_event() {
 void Simulation::add_order(string id, double time, PackageCategory ctg, string src, string dst) {
     // this->id_cnt += 1;
     // string id = std::to_string(this->id_cnt);
-    this->packages[id] = Package { id, ctg, time, src, dst };
-    this->package_dynamic_info[id] = PackageDynamicInfo { id, false, 0.0 };
+    this->packages[id] = Package { id, ctg, time, src, dst, false, 0.0 };
     this->schedule_event(new V1Arrival(time, *this, id, src));
 }
 
 TEST_CASE("simple") {
-    Simulation sim;
-    sim.add_station("A", 5, 2);
-    sim.add_station("B", 20, 2);
+    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
+    sim.add_station("A", 5, 2, 100);
+    sim.add_station("B", 20, 2, 100);
     sim.add_route("A", "B", 100, 50);
     sim.add_route("A", "B", 50, 10);
     sim.add_route("A", "B", 30, 66);
@@ -656,13 +538,30 @@ TEST_CASE("simple") {
     sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
     sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
     sim.run();
-    logs("cost: {}", sim.eval(EvalFuncV0()));
+    logs("cost: {}", sim.eval());
+}
+
+TEST_CASE("smart") {
+    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
+    sim.add_station("A", 1e3, 0, 0);
+    sim.add_station("B", 1, 0, 0);
+    sim.add_station("C", 1, 0, 0);
+    sim.add_station("D", 1e3, 0, 0);
+    sim.add_route("A", "B", 1, 100);
+    sim.add_route("A", "C", 1, 100);
+    sim.add_route("B", "D", 1, 100);
+    sim.add_route("C", "D", 2, 100);
+    for (int i = 1; i <= 100; i++) {
+        sim.add_order("p" + std::to_string(i), 0, PackageCategory::STANDARD, "A", "D");
+    }
+    sim.run();
+    logs("cost: {}", sim.eval());
 }
 
 TEST_CASE("buffer") {
     Simulation sim;
-    sim.add_station("a", 10, 4.5);
-    sim.add_station("b", 20, 2);
+    sim.add_station("a", 10, 4.5, 0);
+    sim.add_station("b", 20, 2, 0);
     sim.add_route("a", "b", 100, 1200);
     sim.add_order("p1", 100, PackageCategory::STANDARD, "a", "b");
     sim.add_order("p2", 100, PackageCategory::STANDARD, "a", "b");

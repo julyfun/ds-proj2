@@ -22,6 +22,7 @@ public:
     string id;
     double throughput;
     double process_delay;
+    double cost;
 
     set<string> buffer;
     // 下一个可以开始处理的时间
@@ -47,10 +48,7 @@ struct Package {
     double time_created;
     string src;
     string dst;
-};
-
-struct PackageDynamicInfo {
-    string id;
+    // dynamic
     bool finished;
     double time_finished;
 };

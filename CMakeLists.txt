@@ -5,9 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "Debug") # 这样才能启用 assert
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_subdirectory("fmt")
-include_directories("fmt/include")
+add_subdirectory("third_party/fmt")
+include_directories("third_party/fmt/include")
+
+include_directories("third_party/doctest")
 
 include_directories(src)
-add_executable(run src/main.cpp)
+add_executable(run "src/main.cpp" "src/strategy.cpp")
 target_link_libraries(run fmt::fmt)
