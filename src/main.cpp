@@ -443,7 +443,7 @@ public:
                 this->sim,
                 this->station
             ));
-            package_trip << this->time << "," << earliest << "," << this->station << ","
+            package_trip << this->time << "," << earlist_package << "," << this->station << ","
                          << this->station << "\n";
             return;
         }
@@ -467,8 +467,8 @@ public:
             this->station,
             path[0]
         ));
-        package_trip << this->time << "," << earliest << "," << this->station << "," << path[1]
-                     << "\n";
+        package_trip << this->time << "," << earlist_package << "," << this->station << ","
+                     << path[1] << "\n";
     }
 };
 
@@ -518,18 +518,19 @@ void V0StartProcess::process_event() {
         this->src,
         this->route
     ));
-    package_trip << this->time << "," << this->package << "," << this->src << "," << dst << "\n";
+    package_trip << this->time << "," << this->package << "," << this->src << ","
+                 << this->sim.routes[this->src][this->route].dst << "\n";
 }
 
 void V1StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
     logs(
-        "[{:.3f}] StartSend pack {}: {} => {}, time",
+        "[{:.3f}] StartSend pack {}: {} => {}, time {}",
         this->time,
         this->package,
         this->src,
-        this->sim.routes[this->src][this->route].id,
+        this->sim.routes[this->src][this->route].dst,
         this->sim.routes[this->src][this->route].time
     );
     if (this->sim.packages[this->package].dst == this->src) {
