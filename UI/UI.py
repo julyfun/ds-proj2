@@ -353,5 +353,5 @@ def update_check_package(selected_package_id):
     return f"You selected Package {selected_package_id}, the trip is: \n{''.join(trips)}"
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8070)
+    app.run_server(debug=False, port=8070)
 

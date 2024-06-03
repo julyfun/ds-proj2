@@ -301,6 +301,7 @@ vector<int> dijkstra(
             string v = route.second.dst;
             double w = route.second.time;
             // cout << "  dist v: " << dist[v] << ", dist u: " << dist[u] << ", w: " << w << "\n";
+
             if (dist[u] + w < dist[v]) {
                 // cout << "    update dist: " << dist[u] + w << "\n";
                 dist[v] = dist[u] + w;
@@ -326,11 +327,68 @@ vector<int> dijkstra(
     return path;
 }
 
+// enhanced dijkstra
+vector<int> dijkstra_enhanced(
+    const map<string, Station>& stations,
+    const map<string, map<int, Route>>& routes,
+    string src,
+    string dst
+) {
+    map<string, double> dist;
+    map<string, pair<string, int>> prev; // nodes' prev station and route
+    for (const auto& [id, station]: stations) {
+        dist[id] = std::numeric_limits<double>::max();
+    }
+    dist[src] = 0;
+    // priority_queue<pair<double, string>> q;
+    priority_queue<
+        pair<double, string>,
+        vector<pair<double, string>>,
+        greater<pair<double, string>>>
+        q;
+
+    q.push(make_pair(0, src));
+    while (!q.empty()) {
+        auto [d, u] = q.top();
+        q.pop();
+        if (d > dist[u]) {
+            continue;
+        }
+
+        auto edges = routes.find(u) == routes.end() ? map<int, Route> {} : routes.at(u);
+        for (const auto& route: edges) {
+            string v = route.second.dst;
+            double w = route.second.time;
+            bool station_full = false;
+
+            if (stations.find(v) != stations.end()
+                && stations.at(v).buffer.size() > stations.at(v).throughput && v != dst)
+            {
+                station_full = true;
+            }
+            if (dist[u] + w < dist[v] && !station_full) {
+                dist[v] = dist[u] + w;
+                prev[v] = { u, route.first };
+                q.push(make_pair(dist[v], v));
+            }
+        }
+    }
+    vector<int> path;
+
+    for (string at = dst; at != src;) {
+        auto [from, route] = prev[at];
+        path.push_back(route);
+        at = from;
+    }
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
 TEST_CASE("dijkstra") {
     auto stations = map<string, Station> {
-        { "a", Station { "a", 1.0 / 6, 2 } }, { "b", Station { "b", 1.0 / 5, 2 } },
-        { "c", Station { "c", 1.0 / 4, 2 } }, { "d", Station { "d", 1.0 / 3, 2 } },
-        { "e", Station { "e", 1.0 / 2, 2 } },
+        { "a", Station { "a", 6, 2 } }, { "b", Station { "b", 5, 2 } },
+        { "c", Station { "c", 4, 2 } }, { "d", Station { "d", 3, 2 } },
+        { "e", Station { "e", 2, 2 } },
     };
     map<string, map<int, Route>> routes;
     routes["a"] = {
@@ -342,6 +400,7 @@ TEST_CASE("dijkstra") {
     routes["b"] = {
         { 3, Route { 3, "b", "c", 3, 3 } },
         { 4, Route { 4, "b", "d", 4, 4 } },
+        { 9, Route { 9, "b", "e", 15, 4 } },
     };
     routes["c"] = {
         { 5, Route { 5, "c", "d", 5, 5 } },
@@ -349,15 +408,23 @@ TEST_CASE("dijkstra") {
     routes["d"] = {
         { 6, Route { 6, "d", "e", 6, 6 } },
     };
+    for (int i = 0; i < 10; i++) {
+        stations["d"].buffer.insert("p" + std::to_string(i));
+    }
     auto path = dijkstra(stations, routes, "a", "e");
     // for (const auto& station: path) {
     //     cout << station << " ";
     // }
     // cout << '\n';
-    auto ans = vector<int> { 7, 4, 6 };
+    auto ans = vector<int> { 7, 9 };
     for (int i = 0; i < path.size(); i++) {
         CHECK(path[i] == ans[i]);
     }
+    logs(
+        "buffer size of d: {}, throughput of d: {}",
+        stations["d"].buffer.size(),
+        stations["d"].throughput
+    );
 }
 
 // 检查 buffer 和从 buffer 中拿出内容 buffer 必须在同一个 event
@@ -416,7 +483,7 @@ public:
             }
         }
         // use dijkstra
-        auto path = dijkstra(
+        auto path = dijkstra_enhanced(
             this->sim.stations,
             this->sim.routes,
             this->station,
