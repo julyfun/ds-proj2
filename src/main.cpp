@@ -31,7 +31,6 @@ using log::logs;
 
 using base::Package;
 using base::PackageCategory;
-using base::PackageDynamicInfo;
 using base::Route;
 using base::Station;
 
@@ -83,7 +82,6 @@ private:
     double transport_cost = 0;
 
     // EvaluateStrategy evaluate_strategy = EvaluateStrategy::V0;
-    map<string, PackageDynamicInfo> package_dynamic_info;
 
 public:
     map<string, Station> stations;
@@ -106,8 +104,8 @@ public:
         this->transport_cost += cost;
     }
 
-    void add_station(string id, double throughput, double process_time) {
-        this->stations[id] = Station { id, throughput, process_time };
+    void add_station(string id, double throughput, double process_delay) {
+        this->stations[id] = Station { id, throughput, process_delay };
     }
     // add route
     void add_route(string src, string dst, double time, double cost) {
@@ -128,11 +126,11 @@ public:
             time - this->packages[package].time_created
         );
         this->arrived += 1;
-        this->package_dynamic_info[package].finished = true;
-        this->package_dynamic_info[package].time_finished = time;
+        this->packages[package].finished = true;
+        this->packages[package].time_finished = time;
     }
     double eval(EvalFunc&& eval_func) {
-        return eval_func(this->transport_cost, this->packages, this->package_dynamic_info);
+        return eval_func(this->transport_cost, this->packages);
     }
 };
 
@@ -513,8 +511,7 @@ void V1StartSend::process_event() {
 void Simulation::add_order(string id, double time, PackageCategory ctg, string src, string dst) {
     // this->id_cnt += 1;
     // string id = std::to_string(this->id_cnt);
-    this->packages[id] = Package { id, ctg, time, src, dst };
-    this->package_dynamic_info[id] = PackageDynamicInfo { id, false, 0.0 };
+    this->packages[id] = Package { id, ctg, time, src, dst, false, 0.0 };
     this->schedule_event(new V1Arrival(time, *this, id, src));
 }
 
@@ -528,6 +525,23 @@ TEST_CASE("simple") {
     sim.add_route("A", "B", 200, 10);
     sim.add_order("p1", 100, PackageCategory::STANDARD, "A", "B");
     sim.add_order("p2", 100, PackageCategory::EXPRESS, "A", "B");
+    sim.run();
+    logs("cost: {}", sim.eval(EvalFuncV0()));
+}
+
+TEST_CASE("smart") {
+    Simulation sim;
+    sim.add_station("A", 1e3, 0);
+    sim.add_station("B", 1, 0);
+    sim.add_station("C", 1, 0);
+    sim.add_station("D", 1e3, 0);
+    sim.add_route("A", "B", 1, 100);
+    sim.add_route("A", "C", 1, 100);
+    sim.add_route("B", "D", 1, 100);
+    sim.add_route("C", "D", 2, 100);
+    for (int i = 1; i <= 100; i++) {
+        sim.add_order("p" + std::to_string(i), 0, PackageCategory::STANDARD, "A", "D");
+    }
     sim.run();
     logs("cost: {}", sim.eval(EvalFuncV0()));
 }

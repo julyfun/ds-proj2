@@ -47,10 +47,7 @@ struct Package {
     double time_created;
     string src;
     string dst;
-};
-
-struct PackageDynamicInfo {
-    string id;
+    // dynamic
     bool finished;
     double time_finished;
 };
