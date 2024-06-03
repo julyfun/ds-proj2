@@ -1,13 +1,43 @@
-#include "strategy/v1.hpp"
-
-#include <fstream>
+#include "strategy/v2.hpp"
 
 #include "sim.hpp"
-#include "strategy.hpp"
 
-namespace strategy::v1 {
+namespace strategy::v2 {
 
-void V1TryProcessOne::process_event() {
+double StationPlan::next_arrival_time() {
+    if (arrival_time_of_due_pkgs.empty()) {
+        return std::numeric_limits<double>::max();
+    }
+    // return *arrival_time_of_due_pkgs.begin();
+    return arrival_time_of_due_pkgs.top();
+}
+
+double StationPlan::expected_wait_time(double now) {
+    int buffer_size = this->sim.stations[id].buffer.size();
+    if (now >= this->next_arrival_time()) {
+        buffer_size += this->arrival_time_of_due_pkgs.size();
+    }
+    const double buffer_clean_time = buffer_size / this->sim.stations[id].throughput;
+    const double can_process_time = now - this->sim.stations[id].start_process_ok_time;
+    const double wait_time = std::max(0.0, buffer_clean_time - can_process_time);
+    return wait_time;
+}
+void StationPlan::add_due_pkg(double t) {
+    this->arrival_time_of_due_pkgs.push(t);
+}
+void StationPlan::pop_due_pkg(double t) {
+    assert(!this->arrival_time_of_due_pkgs.empty());
+    assert(rust::eq(this->arrival_time_of_due_pkgs.top(), t));
+    this->arrival_time_of_due_pkgs.pop();
+}
+
+V2Cache::V2Cache(Simulation& sim) {
+    for (const auto& [id, station]: sim.stations) {
+        station_plans.emplace(id, StationPlan(id, sim));
+    }
+}
+
+void V2TryProcessOne::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
@@ -25,7 +55,7 @@ void V1TryProcessOne::process_event() {
             this->station
         );
         // when cd is ok, try again
-        this->sim.schedule_event(new V1TryProcessOne(
+        this->sim.schedule_event(new V2TryProcessOne(
             this->sim.stations.at(this->station).start_process_ok_time,
             this->sim,
             this->station
@@ -89,7 +119,7 @@ void V1TryProcessOne::process_event() {
         }
         // only station cost
         this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
-        this->sim.schedule_event(new V1StartSend(
+        this->sim.schedule_event(new V2StartSend(
             // [todo]
             // 会预备一个 TryProcess，那么如何判断时间是否 ok?（注意精度问题）
             this->time + this->sim.stations.at(this->station).process_delay,
@@ -98,7 +128,7 @@ void V1TryProcessOne::process_event() {
             this->station,
             -1
         ));
-        this->sim.schedule_event(new V1TryProcessOne(
+        this->sim.schedule_event(new V2TryProcessOne(
             this->sim.stations.at(this->station).start_process_ok_time,
             this->sim,
             this->station
@@ -124,7 +154,7 @@ void V1TryProcessOne::process_event() {
     // choose path[0]
     this->sim.add_transport_cost(this->sim.routes.at(this->station).at(path[0]).cost);
     this->sim.add_transport_cost(this->sim.stations.at(this->station).cost);
-    this->sim.schedule_event(new V1StartSend(
+    this->sim.schedule_event(new V2StartSend(
         this->time + this->sim.stations.at(this->station).process_delay,
         this->sim,
         earlist_package,
@@ -135,7 +165,7 @@ void V1TryProcessOne::process_event() {
                  << this->sim.routes.at(this->station).at(path[0]).dst << "\n";
 }
 
-void V1Arrival::process_event() {
+void V2Arrival::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     // std::ofstream file("output.txt", std::ios::app);
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
@@ -156,36 +186,14 @@ void V1Arrival::process_event() {
     }
     package_trip << this->time << "," << this->package << "," << this->station << ","
                  << this->station << "\n";
-    this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->station));
+    this->sim.schedule_event(new V2TryProcessOne(this->time, this->sim, this->station));
     // this->sim.schedule_event();
     // [test]
     // buffer size
     // logs("[{:.3f}] buffer size: {}", this->time, this->sim.stations[this->station].buffer.size());
 }
 
-void V0StartProcess::process_event() {
-    std::ofstream package_trip("package_trip.csv", std::ios::app);
-    logs(
-        "[{:.3f}] {} StartProcess pack {}: {} => {}",
-        this->time,
-        this->src,
-        this->src,
-        this->package,
-        this->src,
-        this->sim.routes[this->src][this->route].dst
-    );
-    this->sim.schedule_event(new V1StartSend(
-        this->time + this->sim.stations.at(this->src).process_delay,
-        this->sim,
-        this->package,
-        this->src,
-        this->route
-    ));
-    package_trip << this->time << "," << this->package << "," << this->src << ","
-                 << this->sim.routes[this->src][this->route].dst << "\n";
-}
-
-void V1StartSend::process_event() {
+void V2StartSend::process_event() {
     // turn into fmt
     // std::ofstream file("output.txt", std::ios::app);
     if (this->sim.packages[this->package].dst == this->src) {
@@ -211,7 +219,7 @@ void V1StartSend::process_event() {
         this->sim.routes.at(this->src).at(this->route).dst,
         this->sim.routes.at(this->src).at(this->route).time
     );
-    this->sim.schedule_event(new V1Arrival(
+    this->sim.schedule_event(new V2Arrival(
         // find src => dst route
         this->time + this->sim.routes.at(this->src).at(this->route).time,
         this->sim,
@@ -219,7 +227,7 @@ void V1StartSend::process_event() {
         this->sim.routes.at(this->src).at(this->route).dst
     ));
     // try process one right now (but after this StartSend guranteed by event push)
-    // this->sim.schedule_event(new V1TryProcessOne(this->time, this->sim, this->src));
+    // this->sim.schedule_event(new V2TryProcessOne(this->time, this->sim, this->src));
 }
 
-} // namespace strategy::v1
+} // namespace strategy::v2

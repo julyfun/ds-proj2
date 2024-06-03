@@ -13,10 +13,12 @@ include_directories("third_party/doctest")
 include_directories(src)
 add_executable(
     run
+    "src/log.cpp"
     "src/main.cpp"
     "src/sim.cpp"
     "src/strategy.cpp"
     "src/strategy/v1.cpp"
+    "src/strategy/v2.cpp"
 )
 
 target_link_libraries(run fmt::fmt)

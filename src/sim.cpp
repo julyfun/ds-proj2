@@ -1,6 +1,7 @@
 #include "sim.hpp"
 
 #include "strategy/v1.hpp"
+#include "strategy/v2.hpp"
 
 namespace sim {
 

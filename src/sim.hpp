@@ -16,9 +16,13 @@
 
 #include "base.hpp"
 #include "eval.hpp"
+#include "event.hpp"
 #include "log.hpp"
 #include "rust.hpp"
 #include "strategy.hpp"
+#include "strategy/v1.hpp"
+#include "strategy/v2.hpp"
+// #include "strategy/v2.hpp"
 
 namespace sim {
 
@@ -32,6 +36,9 @@ using std::priority_queue;
 using std::set;
 using std::string;
 using std::vector;
+
+using event::Event;
+using event::EventComparator;
 
 using log::logs;
 using log::logs_cargo;
@@ -49,26 +56,6 @@ using eval::EvaluateVersion;
 using strategy::dijkstra;
 using strategy::dijkstra_enhanced;
 using strategy::StrategyVersion;
-
-struct Simulation;
-
-struct Event {
-public:
-    const double time;
-
-    Event(double t, Simulation& sim): time(t), sim(sim) {}
-    virtual void process_event() = 0;
-    virtual ~Event() = default;
-
-protected:
-    Simulation& sim;
-};
-
-struct EventComparator {
-    bool operator()(Event* e1, Event* e2) {
-        return e1->time > e2->time;
-    }
-};
 
 struct Simulation {
 private:
@@ -95,6 +82,7 @@ public:
     // strategy info
     // any other ways?
     // map<string, V2StationInfo> v2_station_info;
+    strategy::v2::V2Cache v2_cache { *this };
 
 public:
     Simulation() = default;
