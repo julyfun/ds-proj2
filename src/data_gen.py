@@ -8,8 +8,8 @@ import os
 # print("Current working directory:", os.getcwd())
 
 parameters = {
-    "station_num": 15,
-    "center_num": 5,
+    "station_num": 20,
+    "center_num": 4,
     "packet_num": 1000,
     "money_cost_per_dist_airline": 0.2, # line 79
     "money_cost_per_dist_highway": 0.12,# line 92
@@ -22,7 +22,6 @@ parameters = {
     # station_prop at line 29
     # center_prop at line 55
 }
-
 
 def data_gen():
     # Generate Stations
