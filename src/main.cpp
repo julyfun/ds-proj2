@@ -56,19 +56,6 @@ struct Route {
     double cost;
 };
 
-enum struct TripType {
-    ARRIVED,
-    PROCESSING,
-    SENT,
-};
-
-struct TripInfo {
-    double time;
-    string package;
-    string location;
-    TripType type;
-};
-
 // double get_last_arrival_time(const DataBase& db, string package) {
 //     if (db.trips.find(package) == db.trips.end()) {
 //         return 0;
