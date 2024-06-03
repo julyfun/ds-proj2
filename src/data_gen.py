@@ -10,7 +10,7 @@ import os
 parameters = {
     "station_num": 15,
     "center_num": 5,
-    "packet_num": 2500,
+    "packet_num": 1000,
     "money_cost_per_dist_airline": 0.2, # line 79
     "money_cost_per_dist_highway": 0.12,# line 92
     "money_cost_per_dist_road": 0.07,   # line 105

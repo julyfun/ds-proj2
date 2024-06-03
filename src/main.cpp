@@ -378,9 +378,6 @@ public:
                 this->sim,
                 this->station
             ));
-
-            number_package_in_station << this->time << "," << this->station << ","
-                                      << this->sim.stations[this->station].buffer.size() << "\n";
             return;
         }
         if (this->sim.stations[this->station].buffer.empty()) {
@@ -426,8 +423,8 @@ public:
                 this->time
             );
             for (const auto& [id, station]: this->sim.stations) {
-                number_package_in_station << this->time << "," << id << "," << station.buffer.size()
-                                          << "\n";
+                number_package_in_station << this->time << "," << id << ","
+                                          << this->sim.stations[id].buffer.size() << "\n";
             }
             this->sim.schedule_event(new V1StartSend(
                 // [todo]
@@ -459,8 +456,10 @@ public:
             earlist_package,
             this->time
         );
-        number_package_in_station << this->time << "," << this->station << ","
-                                  << this->sim.stations[this->station].buffer.size() << "\n";
+        for (const auto& [id, station]: this->sim.stations) {
+            number_package_in_station << this->time << "," << id << ","
+                                      << this->sim.stations[id].buffer.size() << "\n";
+        }
         this->sim.schedule_event(new V1StartSend(
             this->time + this->sim.stations[this->station].process_time,
             this->sim,
@@ -469,7 +468,7 @@ public:
             path[0]
         ));
         package_trip << this->time << "," << earlist_package << "," << this->station << ","
-                     << path[0] << "\n";
+                     << this->sim.routes[this->station][path[0]].dst << "\n";
     }
 };
 
@@ -489,8 +488,8 @@ void Arrival::process_event() {
     this->sim.stations[this->station].buffer.insert(this->package);
 
     for (const auto& [id, station]: this->sim.stations) {
-        number_package_in_station << this->time << "," << id << "," << station.buffer.size()
-                                  << "\n";
+        number_package_in_station << this->time << "," << id << ","
+                                  << this->sim.stations[id].buffer.size() << "\n";
     }
     package_trip << this->time << "," << this->package << "," << this->station << ","
                  << this->station << "\n";
