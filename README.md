@@ -65,9 +65,9 @@ make -j8
 
 ```
 # 测试简单路径（见 main.cpp 中的 `TEST_CASE("simple")`）
-./run --dt-test-case=simple -s`
+./run --dt-test-case=simple -s
 # 测试 dijkstra 算法是否正确
-./run --dt-test-case="dijkstra*" -s`
+./run --dt-test-case="dijkstra*" -s
 # 生成较大测试数据
 cd ../data
 python3 data_gen.py
