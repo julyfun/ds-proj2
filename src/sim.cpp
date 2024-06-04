@@ -8,6 +8,11 @@ namespace sim {
 using strategy::v1::V1Arrival;
 
 void Simulation::run() {
+    std::ofstream num_p("number_package_in_station.csv", std::ios::trunc);
+    num_p.clear();
+    std::ofstream package_trip("package_trip.csv", std::ios::trunc);
+    package_trip.clear();
+
     // chrono
     auto start_time = std::chrono::high_resolution_clock::now();
     while (!this->event_queue.empty()) {
