@@ -28,20 +28,22 @@ struct EvalFunc {
 struct EvalFuncV0: public EvalFunc {
     double operator()(double transport_cost, const map<string, Package>& pkgs) override {
         double tot_cost = transport_cost;
-        logs_cargo("Evaluate", "transport cost: {}", transport_cost);
+        logs_cargo("Evaluate", "system transport cost: {}", transport_cost);
         for (const auto& [id, pkg]: pkgs) {
             if (!pkgs.at(id).finished) {
                 tot_cost += 1e6;
                 logs_cargo("Evaluate", "package {} not finished", id);
                 continue;
             }
-            double time_cost = pkgs.at(id).time_finished - pkg.time_created;
-            double cost = time_cost * (pkg.category == PackageCategory::EXPRESS ? 3 : 1);
+            double time_spent = pkgs.at(id).time_finished - pkg.time_created;
+            double cost = time_spent * (pkg.category == PackageCategory::EXPRESS ? 3 : 1);
             logs_cargo(
                 "Evaluate",
-                "package {} finished at {}, cost {}",
+                "package {} type {} finished at {:.2f}, spent {:.2f} cost {:.2f}",
                 id,
+                pkg.category == PackageCategory::EXPRESS ? "express" : "normal",
                 pkgs.at(id).time_finished,
+                time_spent,
                 cost
             );
             tot_cost += cost;
