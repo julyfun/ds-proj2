@@ -167,8 +167,9 @@ TEST_CASE("dijkstra-v1b") {
         { 6, Route { 6, "d", "e", 6, 1 } },
     };
     for (int i = 1; i <= 100; i++) {
-        stations.at("b").buffer.emplace("omg");
+        stations.at("b").buffer.emplace("omg" + std::to_string(i));
     }
+    // output buffer size
     auto path = dijkstra_enhanced(stations, routes, "a", "e");
     // for (const auto& station: path) {
     //     cout << station << " ";
