@@ -9,13 +9,17 @@ git submodule update --init # 获取 fmt 库
 mkdir build
 cd build
 cmake ..
-make
+make -j8
 ```
 
 编译完成，接下来，我们有若干测试点，你可以选择一个测试。
 
-- 测试简单路径（见 main.cpp 中的 `TEST("simple")`）： `./run --dt-test-case=simple -s`
-- 测试 dijkstra 函数是否正常运作： `./run --dt-test-case=dijkstra -s`
+```
+# 测试简单路径（见 main.cpp 中的 `TEST_CASE("simple")`）
+./run --dt-test-case=simple -s`
+# 测试 dijkstra 算法是否正确
+./run --dt-test-case="dijkstra*" -s`
+```
 
 ## Roadmap
 
