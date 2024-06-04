@@ -22,6 +22,7 @@
 #include "strategy.hpp"
 #include "strategy/v1.hpp"
 #include "strategy/v2.hpp"
+#include "strategy/v3.hpp"
 // #include "strategy/v2.hpp"
 
 namespace sim {
@@ -109,7 +110,8 @@ public:
         this->routes.emplace(id, map<int, Route>());
 
         if (this->strategy_version == StrategyVersion::V2
-            || this->strategy_version == StrategyVersion::V2B)
+            || this->strategy_version == StrategyVersion::V2B
+            || this->strategy_version == StrategyVersion::V3)
         {
             this->v2_cache.station_plans.emplace(id, strategy::v2::StationPlan(id, *this));
             this->v2_cache.station_info.emplace(id, strategy::v2::StationInfo());
