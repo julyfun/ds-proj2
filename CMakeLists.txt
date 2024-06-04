@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "Debug") # 这样才能启用 assert
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_compile_options(-O2)
+
 add_subdirectory("third_party/fmt")
 include_directories("third_party/fmt/include")
 
