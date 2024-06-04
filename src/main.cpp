@@ -96,7 +96,7 @@ TEST_CASE("smart-pk") {
     const string snames[] = { "V1", "V1B", "V2", "V2B", "V3" };
     const string enames[] = { "V0", "V1" };
     for (int eva = 0; eva < 2; eva++) {
-        log::ecargo("Stg " + enames[eva], "====================");
+        log::ecargo("Eval " + enames[eva], "====================");
         for (int stg = 0; stg < 5; stg++) {
             auto stg_ver = [&stg]() {
                 if (stg == 0) {
@@ -146,7 +146,7 @@ TEST_CASE("main-pk") {
     const string snames[] = { "V1", "V1B", "V2", "V2B", "V3" };
     const string enames[] = { "V0", "V1" };
     for (int eva = 0; eva < 2; eva++) {
-        log::ecargo("Stg " + enames[eva], "====================");
+        log::ecargo("Eval " + enames[eva], "====================");
         for (int stg = 0; stg < 5; stg++) {
             auto stg_ver = [&stg]() {
                 if (stg == 0) {
