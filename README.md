@@ -1,54 +1,5 @@
 最新版本见：https://github.com/julyfun/ds-proj2
 
-## baseline
-
-吞吐量、延迟、路线成本使用事件驱动模拟，基本按照题面做的。
-
-```
-src
-├── base.hpp 基本定义
-├── eval.hpp 多版本评估方式
-├── event.hpp 事件定义
-├── log.cpp 日志 📒
-├── log.hpp
-├── main.cpp 核心测试点
-├── rust.hpp 通用函数 🦀
-├── sim.cpp 世界
-├── sim.hpp
-├── strategy
-│   ├── v1.cpp 第一大版本策略图 🎓
-│   ├── v1.hpp
-│   ├── v2.cpp 第二大版本策略图
-│   ├── v2.hpp
-│   ├── v3.cpp 第三大版本策略图
-│   └── v3.hpp
-├── strategy.cpp 策略通用函数
-└── strategy.hpp
-
-data
-└── data_gen.py 生成模拟数据
-
-UI
-├── README.md 如何使用可视化 👁
-└── UI.py 可视化
-
-third_party
-├── doctest 单元测试
-└── fmt 格式化日志
-```
-
-## 系统评估设计
-
-我们有多个版本的运输策略和评估策略。我们比较满意评估函数的是 `V1`：
-
-```
-运输成本
-+ 快包裹运输时间 * 1，若超过 24h，立即增加 50，每小时增加 3
-+ 慢包裹运输时间 * 1，若超过 72h，立即增加 50，每小时增加 3
-```
-
-这是认为包裹有一个承诺期限，如果承诺期限没有送到，快递公司就要交违约金。
-
 ## 运行方法
 
 ```
@@ -122,6 +73,43 @@ Eval V1 ====================
 
 没啥进步，这 V3 怎么还变笨了。
 
+## baseline
+
+吞吐量、延迟、路线成本使用事件驱动模拟，基本按照题面做的。
+
+```
+src
+├── base.hpp 基本定义
+├── eval.hpp 多版本评估方式
+├── event.hpp 事件定义
+├── log.cpp 日志 📒
+├── log.hpp
+├── main.cpp 核心测试点
+├── rust.hpp 通用函数 🦀
+├── sim.cpp 世界
+├── sim.hpp
+├── strategy
+│   ├── v1.cpp 第一大版本策略图 🎓
+│   ├── v1.hpp
+│   ├── v2.cpp 第二大版本策略图
+│   ├── v2.hpp
+│   ├── v3.cpp 第三大版本策略图
+│   └── v3.hpp
+├── strategy.cpp 策略通用函数
+└── strategy.hpp
+
+data
+└── data_gen.py 生成模拟数据
+
+UI
+├── README.md 如何使用可视化 👁
+└── UI.py 可视化
+
+third_party
+├── doctest 单元测试
+└── fmt 格式化日志
+```
+
 ## Roadmap
 
 https://docs.qq.com/sheet/DWHJOZHRLZE9YaUpt?tab=BB08J2
@@ -194,3 +182,5 @@ ref: https://www.mdpi.com/2071-1050/14/16/10367
 快包裹运输时间 * 1，若超过 24h，立即增加 50，每小时增加 3
 慢包裹运输时间 * 1，若超过 72h，立即增加 50，每小时增加 3
 ```
+
+这是认为包裹有一个承诺期限，如果承诺期限没有送到，快递公司就要交违约金。这是我们比较满意的评估。
