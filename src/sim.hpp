@@ -66,7 +66,8 @@ private:
     int route_cnt = 0;
     double transport_cost = 0;
 
-    // EvaluateStrategy evaluate_strategy = EvaluateStrategy::V0;
+public:
+    int event_cnt = 0;
 
 public:
     map<string, Station> stations;
@@ -111,6 +112,7 @@ public:
             || this->strategy_version == StrategyVersion::V2B)
         {
             this->v2_cache.station_plans.emplace(id, strategy::v2::StationPlan(id, *this));
+            this->v2_cache.station_info.emplace(id, strategy::v2::StationInfo());
         }
     }
     // add route

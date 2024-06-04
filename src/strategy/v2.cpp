@@ -9,6 +9,19 @@ namespace strategy::v2 {
 
 using std::make_pair;
 
+void try_due_try(double t, Simulation& sim, string station) {
+    // check cached due time
+    if (!sim.v2_cache.station_info.at(station).due_try_time.has_value()) {
+        sim.v2_cache.station_info.at(station).due_try_time = t;
+        sim.schedule_event(new V2TryProcessOne(t, sim, station));
+    }
+    if (t < sim.v2_cache.station_info.at(station).due_try_time) {
+        sim.v2_cache.station_info.at(station).due_try_time = t;
+        sim.schedule_event(new V2TryProcessOne(t, sim, station));
+        return;
+    }
+}
+
 vector<int> fake_dijkstra(
     const map<string, Station>& stations,
     const map<string, map<int, Route>>& routes,
@@ -137,6 +150,24 @@ V2Cache::V2Cache(Simulation& sim) {
 void V2TryProcessOne::process_event() {
     // std::ofstream file("output.txt", std::ios::app);
     // std::ofstream file("output.txt", std::ios::app);
+    // if is not dued
+    if (!this->sim.v2_cache.station_info[this->station].due_try_time.has_value()) {
+        logs_cargo("Error", "station {} try to process one but no due time.");
+        return;
+    }
+    if (!rust::eq(this->sim.v2_cache.station_info[this->station].due_try_time.value(), this->time))
+    {
+        logs_cargo(
+            "Error",
+            "station {} try to process one but due time is {}, cur time {}",
+            this->station,
+            this->sim.v2_cache.station_info[this->station].due_try_time.value(),
+            this->time
+        );
+        return;
+    }
+    this->sim.v2_cache.station_info[this->station].due_try_time.reset();
+
     std::ofstream number_package_in_station("number_package_in_station.csv", std::ios::app);
     std::ofstream package_trip("package_trip.csv", std::ios::app);
 
@@ -153,11 +184,11 @@ void V2TryProcessOne::process_event() {
         );
         // when cd is ok, try again
         // [todo]
-        this->sim.schedule_event(new V2TryProcessOne(
+        try_due_try(
             this->sim.stations.at(this->station).start_process_ok_time,
             this->sim,
             this->station
-        ));
+        );
         return;
     }
     // [没东西]
@@ -250,11 +281,11 @@ void V2TryProcessOne::process_event() {
             this->station,
             -1
         ));
-        this->sim.schedule_event(new V2TryProcessOne(
+        try_due_try(
             this->sim.stations.at(this->station).start_process_ok_time,
             this->sim,
             this->station
-        ));
+        );
         package_trip << this->time << "," << vip_package << "," << this->station << ","
                      << this->station << "\n";
         return;
@@ -289,6 +320,11 @@ void V2TryProcessOne::process_event() {
             + this->sim.routes.at(this->station).at(path[0]).time,
         vip_package
     );
+    try_due_try(
+        this->sim.stations.at(this->station).start_process_ok_time,
+        this->sim,
+        this->station
+    );
     package_trip << this->time << "," << vip_package << "," << this->station << ","
                  << this->sim.routes.at(this->station).at(path[0]).dst << "\n";
 }
@@ -317,7 +353,7 @@ void V2Arrival::process_event() {
     }
     package_trip << this->time << "," << this->package << "," << this->station << ","
                  << this->station << "\n";
-    this->sim.schedule_event(new V2TryProcessOne(this->time, this->sim, this->station));
+    try_due_try(this->time, this->sim, this->station);
     // this->sim.schedule_event();
     // [test]
     // buffer size

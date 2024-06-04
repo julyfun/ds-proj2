@@ -109,6 +109,7 @@ TEST_CASE("smart-pk") {
         }
         sim.run();
         log::ecargo("Tag", "cost: {}", sim.eval());
+        log::ecargo("Tag", "events: {}", sim.event_cnt);
     }
 }
 

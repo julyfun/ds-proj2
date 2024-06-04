@@ -21,6 +21,7 @@ using sim::Simulation;
 using std::greater;
 using std::map;
 using std::multiset;
+using std::optional;
 using std::pair;
 using std::priority_queue;
 using std::string;
@@ -46,11 +47,16 @@ struct StationPlan {
     void pop_due_pkg(double t, const string& id);
 };
 
+struct StationInfo {
+    optional<double> due_try_time = std::nullopt;
+};
+
 // for Simulation to store
 struct V2Cache {
     V2Cache() = default;
     explicit V2Cache(Simulation& sim);
     map<string, StationPlan> station_plans;
+    map<string, StationInfo> station_info;
 };
 
 struct V2Arrival: public Event {

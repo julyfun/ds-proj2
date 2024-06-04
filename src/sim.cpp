@@ -11,6 +11,7 @@ void Simulation::run() {
     // chrono
     auto start_time = std::chrono::high_resolution_clock::now();
     while (!this->event_queue.empty()) {
+        this->event_cnt += 1;
         Event* event = this->event_queue.top();
         this->event_queue.pop();
         this->current_time = event->time;
