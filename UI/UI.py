@@ -141,6 +141,7 @@ def update_figure(selected_time):
         ),
         hoverinfo='text',
         hovertext=filtered_df['station']+" "+"number of packages in buffer: "+filtered_df['num_pack_in_buffer'].astype(str),
+        showlegend=False,
     ))
     fig.update_traces(marker=dict(size=filtered_df['num_pack_in_buffer'],
                                   color=filtered_df['num_pack_in_buffer'],))

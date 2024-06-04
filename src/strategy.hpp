@@ -101,7 +101,7 @@ inline vector<int> dijkstra_enhanced(
     const string dst,
     const double money_coefficient = 1.0,
     const double time_coefficient = 1.667,
-    const double full_standard_coefficient = 2
+    const double full_standard_coefficient = 19
 ) {
     // called
     logs_cargo("Info", "dijkstra_enhanced called");

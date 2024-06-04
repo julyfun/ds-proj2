@@ -8,9 +8,9 @@ import os
 # print("Current working directory:", os.getcwd())
 
 parameters = {
-    "station_num": 20,
-    "center_num": 4,
-    "packet_num": 2400,
+    "station_num": 18,
+    "center_num": 3,
+    "packet_num": 1000,
     "money_cost_per_dist_airline": 0.2, # line 79
     "money_cost_per_dist_highway": 0.12,# line 92
     "money_cost_per_dist_road": 0.07,   # line 105
@@ -121,7 +121,7 @@ def data_gen():
     dst_prob = np.random.random(parameters["station_num"])
     dst_prob = dst_prob / np.sum(dst_prob)
     # Package categories are defined here: 0 for Regular, 1 for Express
-    speed_prob = [0.7, 0.3]
+    speed_prob = [0.7, 0.3] # [0.7, 0.3]
     print("Packets:")
     for i in range(parameters["packet_num"]):      # Number of packets
         src = np.random.choice(parameters["station_num"], p=src_prob)
