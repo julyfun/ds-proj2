@@ -99,15 +99,6 @@ double StationPlan::next_arrival_time() const {
 }
 
 double StationPlan::estimated_wait_time(double now, double arrive_time) const {
-    // int buffer_size = this->sim.stations[id].buffer.size();
-    // if (arrive_time >= this->next_arrival_time()) {
-    //     buffer_size += this->arrival_time_of_due_pkgs.size();
-    // }
-    // logs_cargo("Estimate", "{} {} {}", arrive_time, this->next_arrival_time(), buffer_size);
-    // const double buffer_clean_time = buffer_size / this->sim.stations[id].throughput;
-    // const double can_process_time = arrive_time - this->sim.stations[id].start_process_ok_time;
-    // const double wait_time = std::max(0.0, buffer_clean_time - can_process_time);
-    // return wait_time;
     const Station& station = this->sim.stations.at(id);
     const double finish_cur_buf_time = [&]() {
         if (station.buffer.size() == 0) {
