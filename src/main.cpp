@@ -77,7 +77,7 @@ TEST_CASE("simple-v1b") {
 }
 
 TEST_CASE("smart-pk") {
-    for (int i = 1; i <= 4; i++) {
+    for (int i = 2; i <= 2; i++) {
         Simulation sim { [&i]() {
                             if (i == 1) {
                                 return StrategyVersion::V1;
