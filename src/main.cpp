@@ -192,7 +192,7 @@ TEST_CASE("buffer") {
 }
 
 TEST_CASE("main-v1") {
-    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
+    Simulation sim { StrategyVersion::V1B, EvaluateVersion::V0 };
     sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
@@ -201,7 +201,7 @@ TEST_CASE("main-v1") {
 }
 
 TEST_CASE("main-v2") {
-    Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
+    Simulation sim { StrategyVersion::V2B, EvaluateVersion::V0 };
     sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
