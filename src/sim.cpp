@@ -24,7 +24,7 @@ void Simulation::run() {
         delete event;
     }
     auto spent_run_time = std::chrono::high_resolution_clock::now() - start_time;
-    logs_cargo(
+    log::ecargo(
         "Run",
         "{}ms spent for simulation",
         std::chrono::duration<double, std::milli>(spent_run_time).count()

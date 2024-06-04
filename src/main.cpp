@@ -127,27 +127,29 @@ TEST_CASE("buffer") {
     sim.run();
 }
 
-TEST_CASE("v1-main") {
-    Simulation sim { StrategyVersion::V1B, EvaluateVersion::V0 };
+TEST_CASE("main-v1") {
+    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
     sim.read_data("../data/data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
-    logs("cost: {}", sim.eval());
+    log::ecargo("v1-main", "cost: {}", sim.eval());
+    log::ecargo("Tag", "events: {}", sim.event_cnt);
 }
 
-TEST_CASE("v2-main") {
+TEST_CASE("main-v2") {
     Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
     sim.read_data("../data/data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
-    logs("cost: {}", sim.eval());
+    log::ecargo("v2-main", "cost: {}", sim.eval());
+    log::ecargo("Tag", "events: {}", sim.event_cnt);
     // print all plans' size' in v2_cache
     // for (auto& [key, value]: sim.v2_cache.station_plans) {
     //     CHECK(value.arrival_time_of_due_pkgs.size() == 0);
     // }
 }
 
-TEST_CASE("v2-simple") {
+TEST_CASE("simple-v2") {
     Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
     sim.add_station("A", 5, 2, 100);
     sim.add_station("B", 20, 2, 100);
