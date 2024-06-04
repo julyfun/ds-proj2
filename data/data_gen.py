@@ -10,7 +10,7 @@ import os
 parameters = {
     "station_num": 20,
     "center_num": 4,
-    "packet_num": 1000,
+    "packet_num": 2400,
     "money_cost_per_dist_airline": 0.2, # line 79
     "money_cost_per_dist_highway": 0.12,# line 92
     "money_cost_per_dist_road": 0.07,   # line 105
@@ -29,7 +29,7 @@ def data_gen():
     station_pos = []
     # properties are defined here: throughput/tick, time_delay, money_cost
     station_prop_candidates = [
-        (10, 2, 0.5), (15, 2, 0.6), (20, 1, 0.8), (25, 1, 0.9)]
+        (1, 2, 0.5), (1, 2, 0.6), (2, 1, 0.8), (3, 1, 0.9)]
     station_prop = []
     for i in range(parameters["station_num"]):
         # Map size is defined here, which is 100*100
@@ -54,7 +54,7 @@ def data_gen():
             center_pos[i] = center_pos[i][0] + 1, center_pos[i][1] + 1
     # properties are defined here: throughput/tick, time_delay, money_cost
     center_prop_candidates = [
-        (100, 2, 0.5), (150, 2, 0.5), (125, 1, 0.5), (175, 1, 0.5)]
+        (5, 2, 0.5), (8, 2, 0.5), (10, 1, 0.5), (12, 1, 0.5)]
     center_prop = []
     for i in range(parameters["center_num"]):
         center_prop.append(

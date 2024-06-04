@@ -193,7 +193,7 @@ TEST_CASE("buffer") {
 
 TEST_CASE("main-v1") {
     Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
-    sim.read_data("../data/data.txt");
+    sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
     log::ecargo("v1-main", "cost: {}", sim.eval());
@@ -202,7 +202,7 @@ TEST_CASE("main-v1") {
 
 TEST_CASE("main-v2") {
     Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
-    sim.read_data("../data/data.txt");
+    sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
     log::ecargo("v2-main", "cost: {}", sim.eval());

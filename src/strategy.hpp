@@ -101,7 +101,8 @@ inline vector<int> dijkstra_enhanced(
     const string src,
     const string dst,
     const double money_coefficient = 1.0,
-    const double time_coefficient = 1.667
+    const double time_coefficient = 1.667,
+    const double full_standard_coefficient = 2
 ) {
     // called
     logs_cargo("Info", "dijkstra_enhanced called");
@@ -135,7 +136,9 @@ inline vector<int> dijkstra_enhanced(
             bool station_full = false;
 
             if (stations.find(v) != stations.end()
-                && stations.at(v).buffer.size() > stations.at(v).throughput && v != dst)
+                && stations.at(v).buffer.size()
+                    > full_standard_coefficient * stations.at(v).throughput
+                && v != dst)
             {
                 station_full = true;
             }
