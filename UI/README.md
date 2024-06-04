@@ -8,9 +8,14 @@
         - events
     - can click every stations, routes, center to check the packets
 
-## Dash is running on http://127.0.0.1:8050/
-
 - needed thing
     - every events
     - plot elements
     - packets in s/c buffer and processing
+    - position
+
+## Using
+- check buffer size of every station with time axis
+- check an event by a particular station and time
+- check the trip of a package with visualisation
+- check the events of a package
