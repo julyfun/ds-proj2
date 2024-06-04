@@ -16,7 +16,7 @@ src
 ├── sim.cpp 世界
 ├── sim.hpp
 ├── strategy
-│   ├── v1.cpp 第一大版本策略图
+│   ├── v1.cpp 第一大版本策略图 🎓
 │   ├── v1.hpp
 │   ├── v2.cpp 第二大版本策略图
 │   ├── v2.hpp
@@ -26,15 +26,15 @@ src
 └── strategy.hpp
 
 data
-└── data_gen.py # 生成模拟数据
+└── data_gen.py 生成模拟数据
 
 UI
-├── README.md # 如何使用可视化
-└── UI.py # 可视化
+├── README.md 如何使用可视化 👁
+└── UI.py 可视化
 
-third_party/
-├── doctest # 单元测试
-└── fmt # 格式化日志
+third_party
+├── doctest 单元测试
+└── fmt 格式化日志
 ```
 
 ## 系统评估设计
@@ -182,9 +182,7 @@ ref: https://www.mdpi.com/2071-1050/14/16/10367
 ### V0
 
 ```
-
-运输成本 + 快包裹运输时间 _ 3 + 慢包裹运输时间 _ 1
-
+运输成本 + 快包裹运输时间 * 3 + 慢包裹运输时间 * 1
 ```
 
 问题：不能防止死包裹
