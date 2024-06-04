@@ -77,7 +77,7 @@ TEST_CASE("simple-v1b") {
 }
 
 TEST_CASE("smart-pk") {
-    for (int i = 2; i <= 2; i++) {
+    for (int i = 1; i <= 4; i++) {
         Simulation sim { [&i]() {
                             if (i == 1) {
                                 return StrategyVersion::V1;
@@ -94,10 +94,10 @@ TEST_CASE("smart-pk") {
         sim.add_station("B", 1, 0, 0);
         sim.add_station("C", 1, 0, 0);
         sim.add_station("D", 1e3, 0, 0);
-        sim.add_route("A", "B", 1, 1);
-        sim.add_route("A", "C", 1, 1);
-        sim.add_route("B", "D", 1, 1);
-        sim.add_route("C", "D", 1.01, 1);
+        sim.add_route("A", "B", 0.1, 1);
+        sim.add_route("A", "C", 0.1, 1);
+        sim.add_route("B", "D", 0.1, 1);
+        sim.add_route("C", "D", 0.11, 1);
         for (int i = 1; i <= 100; i++) {
             sim.add_order(
                 "p" + std::to_string(i),
@@ -128,7 +128,7 @@ TEST_CASE("buffer") {
 }
 
 TEST_CASE("main-v1") {
-    Simulation sim { StrategyVersion::V1, EvaluateVersion::V0 };
+    Simulation sim { StrategyVersion::V1B, EvaluateVersion::V0 };
     sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
@@ -137,7 +137,7 @@ TEST_CASE("main-v1") {
 }
 
 TEST_CASE("main-v2") {
-    Simulation sim { StrategyVersion::V2, EvaluateVersion::V0 };
+    Simulation sim { StrategyVersion::V2B, EvaluateVersion::V0 };
     sim.read_data("../data.txt");
     // sim.schedule_event(new TryProcessOneV1(102, sim, "a"));
     sim.run();
