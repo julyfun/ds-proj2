@@ -19,12 +19,13 @@ using std::priority_queue;
 using std::vector;
 
 enum struct StrategyVersion {
-    V0 = 0,
-    V1,
-    V1A,
+    // V0 = 0,
+    V1 = 0,
+    // V1A,
     V1B,
     V2,
     V2B,
+    V3,
 };
 
 // 使用堆优化 dijkstra 求解时间最短路，返回最短路整条路径 id vector

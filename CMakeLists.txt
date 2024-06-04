@@ -21,6 +21,7 @@ add_executable(
     "src/strategy.cpp"
     "src/strategy/v1.cpp"
     "src/strategy/v2.cpp"
+    "src/strategy/v3.cpp"
 )
 
 target_link_libraries(run fmt::fmt)

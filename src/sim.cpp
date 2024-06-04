@@ -48,6 +48,8 @@ void Simulation::add_order(string id, double time, PackageCategory ctg, string s
                || this->strategy_version == StrategyVersion::V2B)
     {
         this->schedule_event(new strategy::v2::V2Arrival(time, *this, id, src, true));
+    } else if (this->strategy_version == StrategyVersion::V3) {
+        this->schedule_event(new strategy::v3::V3Arrival(time, *this, id, src, true));
     }
 }
 
